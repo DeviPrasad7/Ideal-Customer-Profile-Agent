@@ -27,7 +27,7 @@ services:
       - ./backend/alembic.ini:/app/alembic.ini
     environment:
       - APP_ENV=development
-      - DATABASE_URL=postgresql://agent:agent@postgres:5432/agentic
+      - DATABASE_URL=${DATABASE_URL}
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_PROVIDER=${LLM_PROVIDER:-openai}
       - LLM_MODEL=${LLM_MODEL:-gpt-4o}

@@ -20,18 +20,18 @@
 7. **Deliverables**: 5-minute Demo, 5-minute Architecture Walkthrough, GitHub Repository.
 
 ## Current Architecture & Codebase Status (Deep Analysis)
-- **Frameworks**: FastAPI (Backend API), LangGraph (Workflow Orchestration), SQLAlchemy (Database ORM).
-- **Database**: PostgreSQL (via Supabase/Neon/Docker) is used for production data and LangGraph checkpointer memory. SQLite is strictly reserved for local fast-execution testing (via `aiosqlite` in-memory mode).
-- **State Management**: Uses `GraphState` (TypedDict) with `Annotated` reducers. LangGraph checkpointer dynamically uses `AsyncPostgresSaver` in production and `AsyncSqliteSaver` in tests.
-- **Orchestration Engine**: Implemented via `graph.py`. Currently uses a static StateGraph with conditional edges. To fully satisfy the "Dynamic Planner" requirement, the routing logic needs an LLM-driven planning agent rather than hard-coded conditional paths.
-- **Agent Architecture**: Monolithic `nodes.py` was successfully split into individual files (`src/agent/agents/`). Dependencies are injected via `functools.partial`.
+- **Frameworks**: FastAPI (Backend API), LangGraph (Workflow Orchestration), SQLAlchemy (Database ORM), Streamlit (Frontend UI).
+- **Database**: PostgreSQL is successfully used for production data and LangGraph checkpointer memory (`AsyncPostgresSaver`).
+- **State Management**: Uses `GraphState` (TypedDict) with `Annotated` reducers. 
+- **Orchestration Engine**: Implemented via `graph.py`. Successfully uses `DynamicPlannerNode` to dynamically route and select the next agent based on the LLM's decision rather than hard-coded conditional paths.
+- **Agent Architecture**: Agents are modularized in `src/agent/agents/` and use a `@register_agent` decorator for open/closed principle extensibility. Dependencies are injected via `functools.partial`.
 - **Services**: 
   - `ConfigService`: CRUD for ICP, personas.
-  - `MemoryService`: DB-backed memory store. *BUG FOUND*: `hitl_service.py` incorrectly instantiates `MemoryService` with an active session rather than a session factory.
+  - `MemoryService`: DB-backed memory store.
   - `WorkflowService`: Wraps LangGraph invocation.
-  - `HITLService`: Manages Human-In-The-Loop requests.
+  - `HITLService`: Manages Human-In-The-Loop requests securely.
 - **API**: FastAPI providing endpoints `/api/config`, `/api/prospects`, `/api/hitl`, `/api/triggers`.
-- **Deployment**: `Dockerfile` is present but uses `python app.py` with `reload=True`. Needs production-grade `uvicorn` configuration. `docker-compose.yml` mounts local volumes.
+- **Deployment**: `Dockerfile` is present and correctly configured with `entrypoint.sh` for production-grade `uvicorn` deployment.
 
 ## Fundamentals (Must-Have Requirements) Checklist
 - [x] **Specialised Agent Pool**: monitor, score, tech_stack, enricher, competitor, validator, contact_finder, summarizer.
@@ -43,18 +43,11 @@
 - [x] **Actionable Summary Generation**: `summarizer_node`.
 - [x] **HITL Approval Gate**: Integrated via `interrupt()` in `hitl_gateway_node`.
 - [x] **User-Editable Business Rules**: Via ConfigService API.
-- [x] **Pluggable Agent Framework**: Agents are decoupled via DI, but `graph.py` requires manual edge wiring.
+- [x] **Pluggable Agent Framework**: Agents are decoupled via DI.
 - [x] **Reusable Agent/Tool Interface**: `Toolbox` acts as a facade and correctly uses Dependency Inversion via protocol interfaces.
 - [x] **Agentic Orchestration Engine**: A `DynamicPlannerNode` drives routing using an LLM to select the next agent based on context.
-- [ ] **Intuitive UI**: Missing. Backend API only.
-- [ ] **GCP Production Readiness**: Fails due to SQLite and dev-server configuration.
-
-## Actionable Next Steps (See implementation_plan.md)
-1. **GCP Free Tier Readiness**: Migrate SQLite to PostgreSQL/Firestore; update Dockerfile for production Uvicorn.
-2. **SOLID Refactoring**: [COMPLETED] Dependency Inversion in `Toolbox` fixed; `MemoryService` initialization bug in `hitl_service.py` fixed.
-3. **Dynamic Planner Upgrade**: [COMPLETED] Introduced an LLM-driven planner node in LangGraph to dynamically select agents.
-4. **Fix Edge Cases Identified in Code Review**: Address LLM JSON parsing fragility in `DynamicPlannerNode`, UUID parsing in `MemoryService.save_prospect_state`, and Magic Seed config race condition.
-4. **Frontend Implementation**: Build a lightweight React or Streamlit UI for the HITL dashboard.
+- [x] **Intuitive UI**: Streamlit application built and fully functional (`frontend/app.py`).
+- [x] **GCP Production Readiness**: SQLite migrated to PostgreSQL in production, Dockerfile uses Uvicorn.
 
 ---
-*Last updated: June 27, 2026*
+*Last updated: June 28, 2026*

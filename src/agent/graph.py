@@ -77,4 +77,8 @@ async def get_app(toolbox, memory_service, config: dict):
     app = workflow.compile(
         checkpointer=checkpointer
     )
-    return app
+    # Return the app and the pool so we can gracefully close it on shutdown
+    if not db_url.startswith("sqlite"):
+        return app, pool
+    else:
+        return app, None

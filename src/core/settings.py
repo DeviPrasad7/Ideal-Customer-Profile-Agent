@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # ── General ──────────────────────────────────────────────────────────
     APP_ENV: str = "development"
     LOG_LEVEL: str = "INFO"
+    FRONTEND_ORIGINS: list[str] = ["http://localhost:8501", "http://localhost:3000", "http://localhost:5173", "http://localhost:8000"]
 
     # ── Database ─────────────────────────────────────────────────────────
     # Must be a PostgreSQL URL, e.g.

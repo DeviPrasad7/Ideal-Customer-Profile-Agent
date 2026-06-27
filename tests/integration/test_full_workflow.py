@@ -32,7 +32,7 @@ async def test_full_workflow_execution(mock_toolbox, memory_service, sample_comp
 
     mock_toolbox.generate_text.side_effect = llm_routing_side_effect
     
-    graph_app = await get_app(mock_toolbox, memory_service, config_dict)
+    graph_app, _ = await get_app(mock_toolbox, memory_service, config_dict)
     WorkflowService.set_app(graph_app)
     
     import asyncio

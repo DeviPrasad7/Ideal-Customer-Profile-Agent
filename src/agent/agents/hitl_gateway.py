@@ -28,9 +28,17 @@ class HitlGatewayNode(AgentNode):
             or 0.40
         )
         threshold = raw_threshold / 100.0 if raw_threshold > 1 else raw_threshold
+        
+        raw_auto_approve = (
+            self.config.get("thresholds", {}).get("auto_approve_threshold")
+            or self.config.get("auto_approve_threshold")
+            or 0.85
+        )
+        auto_threshold = raw_auto_approve / 100.0 if raw_auto_approve > 1 else raw_auto_approve
 
         needs_hitl = False
         hitl_reason = ""
+        auto_approved = False
 
         if not website:
             needs_hitl = True
@@ -39,14 +47,21 @@ class HitlGatewayNode(AgentNode):
             needs_hitl = True
             hitl_reason = f"Low confidence ({confidence:.2f} < {threshold:.2f}) or data conflict"
         else:
-            # Also always pause for final review if we made it to the end
+            # Pause for final review if we made it to the end, unless confidence is high enough
             if state.get("data", {}).get("summary_object"):
-                needs_hitl = True
-                hitl_reason = "Final manual review requested"
+                if confidence >= auto_threshold:
+                    auto_approved = True
+                else:
+                    needs_hitl = True
+                    hitl_reason = f"Final review (confidence {confidence:.2f} < auto-approve {auto_threshold:.2f})"
                 
         updates = {"executed_agents": ["hitl_gateway_node"]}
         
-        if needs_hitl:
+        if auto_approved:
+            updates["overall_status"] = "APPROVED"
+            updates["validation_notes"] = [ValidationNote(level="INFO", message=f"Auto-approved (confidence {confidence:.2f} >= {auto_threshold:.2f})", source_agent="hitl", timestamp=time.time())]
+            
+        elif needs_hitl:
             self.toolbox.emit_event("HITL_REQUEST", {"prospect_id": prospect_id, "reason": hitl_reason})
             # Pause execution using LangGraph's inline interrupt
             # The user will resume with Command(resume={"action": "APPROVED", ...})

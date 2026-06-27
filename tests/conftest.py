@@ -17,7 +17,8 @@ from services.config_service import ConfigService
 from services.hitl_service import HITLService
 from services.workflow_service import WorkflowService
 from agent.utils import Toolbox
-from api.main import app, get_app
+from api.main import app
+from agent.graph import get_app
 
 # --- Database Fixtures ---
 
@@ -102,7 +103,7 @@ def hitl_service(memory_service):
 def workflow_service(mock_toolbox, memory_service):
     # Workflow service needs a graph app. We will initialize it with mocked components.
     config_dict = {"icp": {}, "personas": []}
-    WorkflowService._graph_app = None # Reset
+    WorkflowService._app = None # Reset
     return WorkflowService
 
 

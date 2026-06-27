@@ -47,7 +47,7 @@ async def test_dynamic_planner_simulate_failure():
     state["retry_counts"] = {"enricher_node": 1}
     result2 = await node(state)
     assert result2["next_node"] == "enricher_node"
-    assert result2["retry_counts"]["enricher_node"] == 1 # This will add up in the reducer to 2
+    assert result2["retry_counts"]["enricher_node"] == 2
     
     # 3. Third execution (with retry_count=2) should proceed normally via LLM
     state["retry_counts"] = {"enricher_node": 2}

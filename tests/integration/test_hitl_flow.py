@@ -11,7 +11,7 @@ async def test_hitl_flow_execution(mock_toolbox, memory_service, hitl_service, s
         "personas": sample_personas
     }
     
-    graph_app = await get_app(mock_toolbox, memory_service, config_dict)
+    graph_app, _ = await get_app(mock_toolbox, memory_service, config_dict)
     WorkflowService.set_app(graph_app)
     WorkflowService.set_hitl_service(hitl_service)
     

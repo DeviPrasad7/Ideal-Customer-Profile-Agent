@@ -50,6 +50,9 @@ class WorkflowService:
             logger.info("Starting workflow for prospect", thread_id=thread_id)
             config = {"configurable": {"thread_id": thread_id}}
             try:
+                if WorkflowService._app is None:
+                    raise RuntimeError("WorkflowService graph app is not initialized")
+                    
                 await WorkflowService._app.ainvoke(configured_state, config=config)
                 
                 # Check if the graph paused due to an interrupt

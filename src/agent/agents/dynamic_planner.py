@@ -43,10 +43,11 @@ class DynamicPlannerNode(AgentNode):
                 agent=last_agent,
                 retry_count=retry_counts.get(last_agent, 0) + 1
             )
+            current_retries = retry_counts.get(last_agent, 0)
             return {
                 "executed_agents": ["dynamic_planner_node"],
                 "next_node": last_agent,
-                "retry_counts": {last_agent: 1} # reducer add_dict handles adding
+                "retry_counts": {last_agent: current_retries + 1}
             }
             
         # 2. Prepare context for the LLM

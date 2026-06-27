@@ -1,0 +1,10 @@
+{
+    "industries": ["B2B SaaS", "Fintech"],
+    "min_revenue": 5000000,
+    "max_revenue": 100000000,
+    "min_employees": 50,
+    "max_employees": 1000,
+    "locations": ["North America", "Europe"],
+    "tech_stack": ["AWS", "React", "Python"],
+    "behaviors": ["Scaling infrastructure", "Customer retention"]
+}

@@ -1,0 +1,10 @@
+{
+    "company_name": "TestCorp Inc.",
+    "website": "https://testcorp.example.com",
+    "description": "TestCorp is a leading B2B SaaS provider focusing on cloud automation.",
+    "industry": "B2B SaaS",
+    "employee_count": 250,
+    "estimated_revenue": 25,
+    "technologies": ["AWS", "Python", "React", "PostgreSQL"],
+    "recent_news": ["TestCorp raises Series B", "TestCorp launches new cloud feature"]
+}

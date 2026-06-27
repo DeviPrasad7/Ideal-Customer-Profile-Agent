@@ -1,0 +1,6 @@
+{
+    "job_titles": ["CTO", "VP of Engineering"],
+    "seniority_levels": ["C-Level", "VP"],
+    "functions": ["Engineering", "Technology"],
+    "exclude_titles": ["Intern", "HR"]
+}

@@ -66,9 +66,9 @@ class WorkflowService:
             logger.info("Resuming workflow", thread_id=thread_id, decision=decision)
             try:
                 from langgraph.types import Command
-                resume_payload = {"action": decision}
+                resume_payload = {"decision": decision}
                 if corrections:
-                    resume_payload["edits"] = corrections
+                    resume_payload["corrections"] = corrections
                     
                 await WorkflowService._app.ainvoke(Command(resume=resume_payload), config=config)
                 

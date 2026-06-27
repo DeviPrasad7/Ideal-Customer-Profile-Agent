@@ -6,12 +6,13 @@ from datetime import datetime, timezone
 
 from core.settings import settings
 
-engine = create_async_engine(
-    settings.get_async_db_url(),
-    echo=settings.APP_ENV == "development",
-    pool_size=5,
-    max_overflow=10,
-)
+db_url = settings.get_async_db_url()
+engine_kwargs = {"echo": settings.APP_ENV == "development"}
+if not db_url.startswith("sqlite"):
+    engine_kwargs["pool_size"] = 5
+    engine_kwargs["max_overflow"] = 10
+
+engine = create_async_engine(db_url, **engine_kwargs)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 Base = declarative_base()

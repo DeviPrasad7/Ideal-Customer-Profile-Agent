@@ -187,16 +187,16 @@ class Toolbox:
 class MonitoringService:
     @staticmethod
     def log_success(prospect_id: str, message: str = ""):
-        logger.info("SUCCESS", prospect_id=prospect_id, message=message)
+        logger.info("SUCCESS", extra={"prospect_id": prospect_id, "detail": message})
 
     @staticmethod
     def log_error(prospect_id: str, error_code: str):
-        logger.error("ERROR", prospect_id=prospect_id, error_code=error_code)
+        logger.error("ERROR", extra={"prospect_id": prospect_id, "error_code": error_code})
         
     @staticmethod
     def log_warning(prospect_id: str, message: str):
-        logger.warning("WARNING", prospect_id=prospect_id, message=message)
+        logger.warning("WARNING", extra={"prospect_id": prospect_id, "detail": message})
 
     @staticmethod
     def log_info(prospect_id: str, message: str):
-        logger.info("INFO", prospect_id=prospect_id, message=message)
+        logger.info("INFO", extra={"prospect_id": prospect_id, "detail": message})

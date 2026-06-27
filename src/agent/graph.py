@@ -2,7 +2,6 @@ from functools import partial
 from typing import Literal
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from psycopg_pool import AsyncConnectionPool
 
 from core.settings import settings
 
@@ -65,23 +64,26 @@ def setup_graph(toolbox, memory_service, config: dict):
 async def get_app(toolbox, memory_service, config: dict):
     workflow = setup_graph(toolbox, memory_service, config)
     
-    # PostgreSQL-backed checkpointer for durable HITL state
-    connection_string = settings.get_checkpoint_db_url()
+    db_url = settings.get_checkpoint_db_url()
     
-    # Run setup with an autocommit connection to allow CREATE INDEX CONCURRENTLY
-    import psycopg
-    async with await psycopg.AsyncConnection.connect(connection_string, autocommit=True) as setup_conn:
-        setup_checkpointer = AsyncPostgresSaver(setup_conn)
-        await setup_checkpointer.setup()
+    if db_url.startswith("sqlite"):
+        from langgraph.checkpoint.memory import MemorySaver
+        checkpointer = MemorySaver()
+    else:
+        import psycopg
+        from psycopg_pool import AsyncConnectionPool
+        # Run setup with an autocommit connection to allow CREATE INDEX CONCURRENTLY
+        async with await psycopg.AsyncConnection.connect(db_url, autocommit=True) as setup_conn:
+            setup_checkpointer = AsyncPostgresSaver(setup_conn)
+            await setup_checkpointer.setup()
 
-    pool = AsyncConnectionPool(
-        conninfo=connection_string,
-        max_size=5,
-        open=False,            # opened explicitly below
-    )
-    await pool.open()
-
-    checkpointer = AsyncPostgresSaver(pool)
+        pool = AsyncConnectionPool(
+            conninfo=db_url,
+            max_size=5,
+            open=False,
+        )
+        await pool.open()
+        checkpointer = AsyncPostgresSaver(pool)
 
     # Compile the workflow - NO interrupt_before since we use inline interrupt()
     app = workflow.compile(

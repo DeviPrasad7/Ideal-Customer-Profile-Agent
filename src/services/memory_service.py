@@ -154,6 +154,14 @@ class MemoryService:
                 summary=summary
             )
             session.add(hitl)
+            
+            result = await session.execute(
+                select(Prospect).where(Prospect.id == pid)
+            )
+            prospect = result.scalar_one_or_none()
+            if prospect:
+                prospect.status = "PENDING_HUMAN"
+                
             await session.commit()
             return hitl.id
 
@@ -175,5 +183,5 @@ class MemoryService:
             if hitl:
                 hitl.decision = decision
                 hitl.corrections = corrections
-                hitl.resolved_at = datetime.datetime.utcnow()
+                hitl.resolved_at = datetime.datetime.now(datetime.timezone.utc)
                 await session.commit()

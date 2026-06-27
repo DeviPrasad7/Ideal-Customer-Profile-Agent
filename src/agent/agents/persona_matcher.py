@@ -22,9 +22,16 @@ class PersonaMatcherNode(AgentNode):
             return {"executed_agents": ["persona_matcher_node"]}
             
         try:
-            persona_def = self.config.get("personas", {}).get("default", {}) # Assuming config structure, falling back to state
-            if not persona_def:
-                persona_def = state.get("config", {}).get("persona", {})
+            persona_def = self.config.get("personas", {})
+            if hasattr(persona_def, "model_dump"):
+                persona_def = persona_def.model_dump()
+                
+            if not persona_def or not isinstance(persona_def, dict):
+                p_state = state.get("config", {}).get("persona", {})
+                if hasattr(p_state, "model_dump"):
+                    p_state = p_state.model_dump()
+                persona_def = p_state if isinstance(p_state, dict) else {}
+                
             job_titles = persona_def.get("job_titles", [])
                 
             employees = await self.toolbox.find_company_employees(company_name)

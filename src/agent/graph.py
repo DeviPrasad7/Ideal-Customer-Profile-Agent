@@ -122,8 +122,12 @@ workflow.add_conditional_edges(
 
 workflow.add_edge("output_dispatcher_node", END)
 
-# Memory Checkpointer
-memory = MemorySaver()
+from langgraph.checkpoint.sqlite import SqliteSaver
+import sqlite3
+
+# Memory Checkpointer using a separate database to avoid conflicts
+conn = sqlite3.connect("checkpoints.db", check_same_thread=False)
+memory = SqliteSaver(conn)
 
 # Compile the workflow - NO interrupt_before since we use inline interrupt()
 app = workflow.compile(

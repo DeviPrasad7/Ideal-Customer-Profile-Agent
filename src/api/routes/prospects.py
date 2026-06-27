@@ -1,0 +1,88 @@
+from fastapi import APIRouter, Depends, Query, HTTPException
+from typing import List, Optional
+from uuid import uuid4
+from models.schemas import ProspectSummary, ProspectDetail
+from services.memory_service import MemoryService
+from services.workflow_service import WorkflowService
+from models.database import async_session
+from sqlalchemy.ext.asyncio import AsyncSession
+from agent.state import GraphState
+
+router = APIRouter(prefix="/api/prospects", tags=["prospects"])
+
+async def get_session() -> AsyncSession:
+    async with async_session() as session:
+        yield session
+
+def get_memory_service(session: AsyncSession = Depends(get_session)) -> MemoryService:
+    return MemoryService(session)
+
+@router.get("", response_model=List[ProspectSummary])
+async def list_prospects(
+    status: Optional[str] = Query(None),
+    company_name: Optional[str] = Query(None),
+    limit: int = Query(100),
+    offset: int = Query(0),
+    memory_service: MemoryService = Depends(get_memory_service)
+):
+    filters = {
+        "status": status,
+        "company_name": company_name,
+        "limit": limit,
+        "offset": offset
+    }
+    return await memory_service.list_prospects(filters)
+
+@router.get("/{prospect_id}", response_model=ProspectDetail)
+async def get_prospect(prospect_id: str, memory_service: MemoryService = Depends(get_memory_service)):
+    prospect = await memory_service.get_prospect(prospect_id)
+    if not prospect:
+        raise HTTPException(status_code=404, detail="Prospect not found")
+        
+    return ProspectDetail(
+        id=prospect.id,
+        company_name=prospect.company_name,
+        website=prospect.website,
+        status=prospect.status,
+        state_json=prospect.state_json,
+        created_at=prospect.created_at,
+        updated_at=prospect.updated_at,
+        workflow_thread_id=prospect.workflow_thread_id
+    )
+
+from pydantic import BaseModel
+class CreateProspectRequest(BaseModel):
+    company_name: str
+    website: Optional[str] = None
+    trigger_event: str = "manual_submission"
+
+@router.post("")
+async def create_prospect(
+    req: CreateProspectRequest, 
+    memory_service: MemoryService = Depends(get_memory_service)
+):
+    prospect_id = str(uuid4())
+    state: GraphState = {
+        "prospect_id": prospect_id,
+        "current_trigger_event": req.trigger_event,
+        "data": {
+            "company_name": req.company_name,
+            "website": req.website
+        },
+        "validation_notes": [],
+        "confidence_score": 0.0,
+        "overall_status": "PENDING",
+        "human_override_payload": None,
+        "executed_agents": [],
+        "errors": [],
+        "has_conflict": False,
+        "tech_detection_status": "PENDING"
+    }
+    
+    # Save initial state
+    await memory_service.save_prospect_state(state)
+    
+    # Submit to workflow
+    await WorkflowService.submit_prospect(state, thread_id=prospect_id)
+    
+    return {"status": "success", "prospect_id": prospect_id}

@@ -5,3 +5,9 @@ langchain-openai>=0.1.20
 python-dotenv>=1.0.1
 structlog>=24.4.0
 pydantic>=2.7.0
+fastapi
+uvicorn
+sqlalchemy
+aiosqlite
+langgraph-checkpoint-sqlite
+pyyaml

@@ -119,29 +119,29 @@ class CircuitBreaker:
             self.last_failure_times[service_name] = time.time()
 
 # ==============================================================================
-# MemoryStore
+# MemoryStore (DEPRECATED: Use src/services/memory_service.py instead)
 # ==============================================================================
-class MemoryStore:
-    """In-memory store for prospects, events, and state across graph executions."""
-    def __init__(self):
-        self.processed_events: dict[str, str] = {}
-        self.prospect_states: dict[str, Any] = {}
-        
-    def has_event_been_processed(self, event_hash: str) -> bool:
-        return event_hash in self.processed_events
-        
-    def mark_event_processed(self, event_hash: str, prospect_id: str) -> None:
-        self.processed_events[event_hash] = prospect_id
-        
-    def save_prospect_state(self, prospect_id: str, context: Any) -> None:
-        self.prospect_states[prospect_id] = context
-        
-    def load_prospect_state(self, prospect_id: str) -> Optional[Any]:
-        return self.prospect_states.get(prospect_id)
-        
-    def rollback_prospect_state(self, prospect_id: str) -> None:
-        if prospect_id in self.prospect_states:
-            del self.prospect_states[prospect_id]
+# class MemoryStore:
+#     \"\"\"In-memory store for prospects, events, and state across graph executions.\"\"\"
+#     def __init__(self):
+#         self.processed_events: dict[str, str] = {}
+#         self.prospect_states: dict[str, Any] = {}
+#         
+#     def has_event_been_processed(self, event_hash: str) -> bool:
+#         return event_hash in self.processed_events
+#         
+#     def mark_event_processed(self, event_hash: str, prospect_id: str) -> None:
+#         self.processed_events[event_hash] = prospect_id
+#         
+#     def save_prospect_state(self, prospect_id: str, context: Any) -> None:
+#         self.prospect_states[prospect_id] = context
+#         
+#     def load_prospect_state(self, prospect_id: str) -> Optional[Any]:
+#         return self.prospect_states.get(prospect_id)
+#         
+#     def rollback_prospect_state(self, prospect_id: str) -> None:
+#         if prospect_id in self.prospect_states:
+#             del self.prospect_states[prospect_id]
 
 # ==============================================================================
 # Toolbox

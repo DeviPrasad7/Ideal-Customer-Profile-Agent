@@ -1,0 +1,43 @@
+icp:
+  industries:
+    - "Software"
+    - "SaaS"
+    - "Information Technology"
+  min_revenue: 1000000
+  max_revenue: 50000000
+  min_employees: 10
+  max_employees: 500
+  locations:
+    - "North America"
+    - "Europe"
+  tech_stack:
+    - "React"
+    - "Node.js"
+    - "AWS"
+  behaviors:
+    - "Hiring developers"
+    - "Recently funded"
+  operator: "OR"
+
+persona:
+  job_titles:
+    - "CTO"
+    - "VP of Engineering"
+    - "Director of Engineering"
+  seniority_levels:
+    - "C-Level"
+    - "VP"
+    - "Director"
+  functions:
+    - "Engineering"
+    - "Technology"
+  exclude_titles:
+    - "Recruiter"
+    - "HR"
+    - "Intern"
+
+thresholds:
+  min_confidence_score: 50.0
+  max_errors_allowed: 3
+  hitl_confidence_threshold: 70.0
+  auto_approve_threshold: 90.0

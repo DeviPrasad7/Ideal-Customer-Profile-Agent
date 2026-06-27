@@ -24,3 +24,30 @@ class AgentNode(Protocol):
             Dict[str, Any]: The updates to apply to the state.
         """
         ...
+
+
+class SafeAgentWrapper:
+    """
+    Wraps an AgentNode with a global try...except block to gracefully handle 
+    unexpected exceptions without crashing the LangGraph workflow.
+    """
+    def __init__(self, agent: AgentNode, agent_name: str):
+        self.agent = agent
+        self.agent_name = agent_name
+
+    async def __call__(self, state: GraphState) -> Dict[str, Any]:
+        try:
+            return await self.agent(state)
+        except Exception as e:
+            from core.logging import logger
+            logger.error(f"Agent {self.agent_name} failed with unhandled exception", error=str(e), agent=self.agent_name)
+            
+            # Increment retry count
+            retry_counts = state.get("retry_counts", {})
+            current_retries = retry_counts.get(self.agent_name, 0)
+            
+            return {
+                "executed_agents": [self.agent_name],
+                "errors": [f"{self.agent_name}: {str(e)}"],
+                "retry_counts": {self.agent_name: current_retries + 1}
+            }

@@ -19,9 +19,8 @@ class OutputDispatcherNode(AgentNode):
             # We want to properly handle the approval
             overall_status = state.get("overall_status", "PENDING")
             
-            # Since this is the output node, if we reached here, the prospect is effectively completed or approved.
-            if overall_status not in ["COMPLETED", "APPROVED"]:
-                overall_status = "APPROVED"
+            # Since this is the output node, if we reached here, the prospect is effectively completed.
+            overall_status = "COMPLETED"
                 
             export_record = {
                 "prospect_id": prospect_id, 

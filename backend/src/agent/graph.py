@@ -6,6 +6,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from core.settings import settings
 
 from .state import GraphState
+from .base import SafeAgentWrapper
 from .registry import registry
 from .agents.dynamic_planner import DynamicPlannerNode
 
@@ -24,7 +25,8 @@ def setup_graph(toolbox, memory_service, config: dict):
     for name in registry.list_agents():
         agent_cls = registry.get_agent(name)
         agent_instance = agent_cls(toolbox, memory_service, config)
-        workflow.add_node(name, agent_instance)
+        safe_agent = SafeAgentWrapper(agent_instance, name)
+        workflow.add_node(name, safe_agent)
 
     # All paths start at the dynamic planner
     workflow.add_edge(START, "dynamic_planner")
@@ -64,10 +66,16 @@ async def get_app(toolbox, memory_service, config: dict):
     else:
         import psycopg
         from psycopg_pool import AsyncConnectionPool
+        from core.logging import logger
         # Run setup with an autocommit connection to allow CREATE INDEX CONCURRENTLY
         async with await psycopg.AsyncConnection.connect(db_url, autocommit=True) as setup_conn:
             setup_checkpointer = AsyncPostgresSaver(setup_conn)
-            await setup_checkpointer.setup()
+            try:
+                await setup_checkpointer.setup()
+            except Exception as e:
+                # Concurrent index creation can throw errors if multiple workers start. 
+                # With WORKERS=1 this is rare, but we catch it just in case.
+                logger.warning("Checkpointer setup failed (likely due to concurrent index creation)", error=str(e))
 
         pool = AsyncConnectionPool(
             conninfo=db_url,

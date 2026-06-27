@@ -150,29 +150,3 @@ For each phase, I provide a **detailed prompt** that you can copy‑and‑paste 
 **Expected Output:** A fully polished, documented, and deployable platform ready for the hackathon submission.
 
 ---
-
-## How to Proceed
-
-1. Copy the prompt for **Phase 1** into your coding agent. Wait for it to finish and provide a summary.
-2. Paste the agent’s output back to me.
-3. I will review the changes, check for any missing pieces, and then give you the prompt for **Phase 2**.
-4. Repeat until all 4 phases are completed.
-
-Let’s start with **Phase 1**. Here is your prompt:
-
----
-
-> **Coding Agent Prompt – Phase 1**
->
-> Please implement Phase 1 of the remediation plan as described above. Focus exclusively on infrastructure and persistence:
->
-> 1. Replace SQLite with PostgreSQL for both application data and LangGraph checkpoints. Use `AsyncPostgresSaver`.
-> 2. Create a unified Pydantic settings class to manage all environment variables.
-> 3. Update the Dockerfile and add an entrypoint script to run Alembic migrations on startup.
-> 4. Do not change agent logic or UI at this stage—only database and environment configuration.
->
-> Provide a summary of changes made, any issues encountered, and a brief verification step to confirm that state persists across container restarts.
-
----
-
-Paste that now, and I’ll wait for the result. Once you send it, I’ll review and give you Phase 2.

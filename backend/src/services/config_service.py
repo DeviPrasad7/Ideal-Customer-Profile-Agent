@@ -46,8 +46,17 @@ class ConfigService:
                 if loaded:
                     default_data.update(loaded)
 
-        return default_data
+        # Validate defaults with Pydantic models to prevent invalid data injection
+        try:
+            ICPCriteria.model_validate(default_data.get("icp", {}))
+            PersonaDefinition.model_validate(default_data.get("persona", {}))
+            ThresholdConfig.model_validate(default_data.get("thresholds", {}))
+        except Exception as e:
+            from core.logging import logger
+            logger.error("Failed to validate default configurations", error=str(e))
+            raise
 
+        return default_data
     async def _get_config(self, key: str, schema_class, default_key: str):
         result = await self.session.execute(select(Config).where(Config.key == key))
         config = result.scalar_one_or_none()

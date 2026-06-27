@@ -17,14 +17,14 @@ services:
       retries: 5
 
   api:
-    build: .
+    build: ./backend
     container_name: icp-agent-api
     ports:
       - "8000:8000"
     volumes:
-      - ./src:/app/src          # hot‑reload source in dev
-      - ./migrations:/app/migrations
-      - ./alembic.ini:/app/alembic.ini
+      - ./backend/src:/app/src          # hot‑reload source in dev
+      - ./backend/migrations:/app/migrations
+      - ./backend/alembic.ini:/app/alembic.ini
     environment:
       - APP_ENV=development
       - DATABASE_URL=postgresql://agent:agent@postgres:5432/agentic

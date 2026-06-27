@@ -17,7 +17,7 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 Base = declarative_base()
 
 def get_utc_now():
-    return datetime.now(timezone.utc)
+    return datetime.utcnow()
 
 class Prospect(Base):
     __tablename__ = "prospects"

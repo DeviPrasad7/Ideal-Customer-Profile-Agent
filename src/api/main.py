@@ -37,13 +37,15 @@ async def lifespan(app: FastAPI):
     )
     
     memory_service = MemoryService(async_session)
-    config_service = ConfigService()
     
-    # Create configuration dictionary to pass to agents
-    config_dict = {
-        "icp": config_service.get_icp(),
-        "personas": config_service.get_personas()
-    }
+    async with async_session() as session:
+        config_service = ConfigService(session)
+        
+        # Create configuration dictionary to pass to agents
+        config_dict = {
+            "icp": await config_service.get_icp(),
+            "personas": await config_service.get_persona()
+        }
     
     graph_app = await get_app(toolbox, memory_service, config_dict)
     app.state.graph_app = graph_app

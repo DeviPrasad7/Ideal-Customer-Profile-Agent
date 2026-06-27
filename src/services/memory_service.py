@@ -175,5 +175,5 @@ class MemoryService:
             if hitl:
                 hitl.decision = decision
                 hitl.corrections = corrections
-                hitl.resolved_at = datetime.datetime.now(datetime.timezone.utc)
+                hitl.resolved_at = datetime.datetime.utcnow()
                 await session.commit()

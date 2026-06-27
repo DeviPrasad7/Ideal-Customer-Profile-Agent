@@ -1,8 +1,6 @@
-import structlog
+from core.logging import logger
 from agent.utils import CompanyProfile, EmailValidationResult, CompetitorMapping
 from typing import Optional
-
-logger = structlog.get_logger()
 
 class EnrichmentService:
     async def fetch_crunchbase(self, company_name: str) -> CompanyProfile:

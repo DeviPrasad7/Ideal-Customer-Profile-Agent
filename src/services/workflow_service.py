@@ -2,20 +2,29 @@ import asyncio
 from agent.state import GraphState
 from models.database import async_session
 from services.config_service import ConfigService
-import structlog
-
-logger = structlog.get_logger()
+from core.logging import logger
 
 class WorkflowService:
-    """Wrapper to run the LangGraph workflow."""
-    
+    """Wrapper to run the LangGraph workflow.
+
+    Can be used either as a class (legacy, via set_app/set_hitl_service) or
+    as an instance (preferred, stored on app.state.workflow_service).
+    Both patterns share the same underlying class-level _app/_hitl_service
+    references so they stay in sync.
+    """
+
     _app = None
     _hitl_service = None
+
+    def __init__(self, graph_app, hitl_service):
+        """Instance constructor – store on app.state.workflow_service."""
+        WorkflowService._app = graph_app
+        WorkflowService._hitl_service = hitl_service
 
     @classmethod
     def set_app(cls, app):
         cls._app = app
-        
+
     @classmethod
     def set_hitl_service(cls, hitl_service):
         cls._hitl_service = hitl_service

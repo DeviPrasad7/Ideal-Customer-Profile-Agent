@@ -28,6 +28,17 @@ class AgentRegistry:
         """List all registered agent names."""
         return list(self._agents.keys())
 
+    def list_agents_with_descriptions(self) -> List[dict]:
+        """Return agent metadata dicts for LLM prompt construction.
+
+        Returns:
+            [{"name": "score_node", "description": "Scores the prospect..."}, ...]
+        """
+        return [
+            {"name": name, "description": self._descriptions.get(name, "")}
+            for name in self._agents.keys()
+        ]
+
     def get_description(self, name: str) -> str:
         """Retrieve the description for a registered agent."""
         return self._descriptions.get(name, "")

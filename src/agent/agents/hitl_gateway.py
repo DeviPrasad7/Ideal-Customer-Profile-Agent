@@ -20,16 +20,24 @@ class HitlGatewayNode(AgentNode):
         confidence = state.get("confidence_score", 100.0)
         conflict = state.get("has_conflict", False)
         website = state.get("data", {}).get("website_url")
-        
+
+        # Normalize threshold: config may store 70 (%) or 0.70 (decimal)
+        raw_threshold = (
+            self.config.get("thresholds", {}).get("hitl_confidence_threshold")
+            or self.config.get("hitl_confidence_threshold")
+            or 0.40
+        )
+        threshold = raw_threshold / 100.0 if raw_threshold > 1 else raw_threshold
+
         needs_hitl = False
         hitl_reason = ""
-        
+
         if not website:
             needs_hitl = True
             hitl_reason = "Missing website_url"
-        elif confidence < 0.40 or conflict:
+        elif confidence < threshold or conflict:
             needs_hitl = True
-            hitl_reason = "Low confidence or data conflict"
+            hitl_reason = f"Low confidence ({confidence:.2f} < {threshold:.2f}) or data conflict"
         else:
             # Also always pause for final review if we made it to the end
             if state.get("data", {}).get("summary_object"):

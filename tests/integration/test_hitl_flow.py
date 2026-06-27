@@ -18,10 +18,15 @@ async def test_hitl_flow_execution(mock_toolbox, memory_service, hitl_service, s
     # Run the workflow with a company name that forces HITL or mock the planner to go to HITL
     def llm_routing_side_effect(prompt, fallback, require_json=False):
         if "Available Agents:" in prompt:
-            executed_part = prompt.split("Executed Agents:")[1]
-            if "'hitl_gateway_node'" not in executed_part:
+            # Safely check what has been executed
+            # Find the Executed Agents list in the prompt
+            import re
+            match = re.search(r"- Executed Agents:\s*(\[.*?\])", prompt)
+            executed = match.group(1) if match else "[]"
+            
+            if "'hitl_gateway_node'" not in executed:
                 return '{"next_node": "hitl_gateway_node"}'
-            elif "'output_dispatcher_node'" not in executed_part:
+            elif "'output_dispatcher_node'" not in executed:
                 return '{"next_node": "output_dispatcher_node"}'
             else:
                 return '{"next_node": "__end__"}'

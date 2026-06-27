@@ -53,3 +53,5 @@ class GraphState(TypedDict):
     has_conflict: bool
     tech_detection_status: str
     next_node: str
+    last_agent: str
+    simulate_failure: bool

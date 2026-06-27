@@ -7,11 +7,9 @@ from services.workflow_service import WorkflowService
 from models.database import async_session
 from sqlalchemy.ext.asyncio import AsyncSession
 from agent.state import GraphState
+from api.dependencies import get_memory_service
 
 router = APIRouter(prefix="/api/prospects", tags=["prospects"])
-
-def get_memory_service() -> MemoryService:
-    return MemoryService(async_session)
 
 @router.get("", response_model=List[ProspectSummary])
 async def list_prospects(
@@ -51,6 +49,7 @@ class CreateProspectRequest(BaseModel):
     company_name: str
     website: Optional[str] = None
     trigger_event: str = "manual_submission"
+    simulate_failure: bool = False
 
 @router.post("")
 async def create_prospect(
@@ -63,7 +62,7 @@ async def create_prospect(
         "current_trigger_event": req.trigger_event,
         "data": {
             "company_name": req.company_name,
-            "website": req.website
+            "website_url": req.website
         },
         "validation_notes": [],
         "confidence_score": 0.0,
@@ -72,7 +71,8 @@ async def create_prospect(
         "executed_agents": [],
         "errors": [],
         "has_conflict": False,
-        "tech_detection_status": "PENDING"
+        "tech_detection_status": "PENDING",
+        "simulate_failure": req.simulate_failure
     }
     
     # Save initial state

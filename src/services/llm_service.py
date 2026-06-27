@@ -1,9 +1,7 @@
 from langchain_core.messages import SystemMessage, HumanMessage
-import structlog
+from core.logging import logger
 
 from core.settings import settings
-
-logger = structlog.get_logger()
 
 
 def _build_chat_model():

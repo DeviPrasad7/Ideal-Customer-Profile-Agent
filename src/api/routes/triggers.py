@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import List
 from models.schemas import TriggerSourceSchema
 from models.database import TriggerSource, async_session
@@ -69,13 +69,15 @@ async def delete_source(source_id: str, session: AsyncSession = Depends(get_sess
     return {"status": "success"}
 
 @router.post("/start")
-async def start_monitor():
-    from api.main import trigger_monitor
-    trigger_monitor.start()
+async def start_monitor(request: Request):
+    # Access monitor via app.state to avoid circular import from api.main
+    monitor = request.app.state.trigger_monitor
+    monitor.start()
     return {"status": "success", "message": "TriggerMonitor started"}
 
 @router.post("/stop")
-async def stop_monitor():
-    from api.main import trigger_monitor
-    trigger_monitor.stop()
+async def stop_monitor(request: Request):
+    # Access monitor via app.state to avoid circular import from api.main
+    monitor = request.app.state.trigger_monitor
+    monitor.stop()
     return {"status": "success", "message": "TriggerMonitor stopped"}

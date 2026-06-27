@@ -11,6 +11,7 @@ from .hitl_gateway import HitlGatewayNode
 from .output_dispatcher import OutputDispatcherNode
 from .consolidation import ConsolidationNode
 from .planner import PlannerNode
+from .dynamic_planner import DynamicPlannerNode
 
 __all__ = [
     "PlannerNode",
@@ -26,4 +27,5 @@ __all__ = [
     "HitlGatewayNode",
     "OutputDispatcherNode",
     "ConsolidationNode",
+    "DynamicPlannerNode",
 ]

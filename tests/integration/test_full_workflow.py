@@ -18,13 +18,15 @@ async def test_full_workflow_execution(mock_toolbox, memory_service, sample_comp
                 pass # just a generic check
             
             # Simple deterministic routing for the mock LLM
-            state_str = prompt
-            if "Has Firmographics: False" in state_str:
+            import re
+            match = re.search(r"- Executed Agents:\s*(\[.*?\])", prompt)
+            executed = match.group(1) if match else "[]"
+            
+            if "'enricher_node'" not in executed:
                 return '{"next_node": "enricher_node"}'
-            elif "Has Company Name: True" in state_str and "score" not in state_str:
+            elif "'score_node'" not in executed:
                 return '{"next_node": "score_node"}'
             else:
-                # Let fallback handle it or return __end__
                 return '{"next_node": "__end__"}'
         return '{"decision": "APPROVE"}'
 

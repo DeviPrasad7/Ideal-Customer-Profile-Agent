@@ -5,11 +5,9 @@ from services.memory_service import MemoryService
 from models.database import async_session
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
+from api.dependencies import get_memory_service
 
 router = APIRouter(prefix="/api/hitl", tags=["hitl"])
-
-def get_memory_service() -> MemoryService:
-    return MemoryService(async_session)
 
 @router.get("/pending", response_model=List[HITLRequestDetail])
 async def list_pending_hitl(memory_service: MemoryService = Depends(get_memory_service)):

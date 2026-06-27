@@ -1,10 +1,8 @@
 import time
 import httpx
 from bs4 import BeautifulSoup
-import structlog
+from core.logging import logger
 from agent.utils import WebPage, TechStackEntry, JobPosting, RateLimitError, TimeoutError, ServiceUnavailableError
-
-logger = structlog.get_logger()
 
 class ScrapingService:
     async def fetch_webpage(self, url: str, timeout_sec: int = 10) -> WebPage:

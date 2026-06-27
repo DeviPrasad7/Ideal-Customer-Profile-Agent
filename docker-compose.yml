@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 5
 
-  icp-agent-api:
+  api:
     build: .
     container_name: icp-agent-api
     ports:
@@ -42,9 +42,9 @@ services:
     ports:
       - "8501:8501"
     environment:
-      - API_URL=http://icp-agent-api:8000   # points to the backend container
+      - API_URL=http://api:8000   # points to the backend container
     depends_on:
-      - icp-agent-api
+      - api
     restart: unless-stopped
 volumes:
   postgres_data:

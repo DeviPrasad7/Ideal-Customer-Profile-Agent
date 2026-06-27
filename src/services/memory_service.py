@@ -16,11 +16,31 @@ class MemoryService:
             )
             return result.scalar_one_or_none() is not None
 
-    async def mark_event_processed(self, event_hash: str, prospect_id: str) -> None:
+    async def mark_event_processed(self, event_hash: str, prospect_id: str, status: str = "completed") -> None:
         async with self.session_factory() as session:
-            event = ProcessedEvent(event_hash=event_hash, prospect_id=prospect_id)
+            event = ProcessedEvent(event_hash=event_hash, prospect_id=prospect_id, status=status)
             session.add(event)
             await session.commit()
+
+    async def update_event_status(self, event_hash: str, status: str) -> None:
+        from sqlalchemy import update
+        async with self.session_factory() as session:
+            await session.execute(
+                update(ProcessedEvent)
+                .where(ProcessedEvent.event_hash == event_hash)
+                .values(status=status)
+            )
+            await session.commit()
+
+    async def delete_processed_event(self, event_hash: str) -> None:
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(ProcessedEvent).where(ProcessedEvent.event_hash == event_hash)
+            )
+            event = result.scalar_one_or_none()
+            if event:
+                await session.delete(event)
+                await session.commit()
 
     async def save_prospect_state(self, state: Any) -> None:
         prospect_id_str = state.get("prospect_id")
@@ -30,8 +50,10 @@ class MemoryService:
         prospect_id = uuid.UUID(prospect_id_str)
         status = state.get("overall_status", "PENDING")
         
-        from fastapi.encoders import jsonable_encoder
-        state_dict = jsonable_encoder(state)
+        import json
+        # Use stdlib json with default=str to handle UUIDs / datetimes without
+        # pulling in FastAPI's encoder into the service layer.
+        state_dict = json.loads(json.dumps(state, default=str))
         
         async with self.session_factory() as session:
             result = await session.execute(

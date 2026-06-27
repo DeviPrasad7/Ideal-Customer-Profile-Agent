@@ -1,10 +1,10 @@
 import json
 import re
 from typing import Any
+from core.logging import logger
 from ..state import GraphState
 from ..utils import Toolbox
 from services.memory_service import MemoryService
-from core.logging import logger
 from ..base import AgentNode
 from ..registry import AgentRegistry
 

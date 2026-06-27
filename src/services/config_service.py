@@ -1,7 +1,7 @@
 import yaml
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from models.database import Config
 from models.schemas import ICPCriteria, PersonaDefinition, ThresholdConfig
 
@@ -88,3 +88,11 @@ class ConfigService:
 
     async def update_thresholds(self, thresholds: ThresholdConfig) -> None:
         await self._update_config("thresholds", thresholds.model_dump())
+
+    async def reset_to_defaults(self) -> None:
+        await self.session.execute(delete(Config))
+        await self.session.commit()
+        # This will trigger a re-insertion of defaults into the DB
+        await self._get_config("icp", ICPCriteria, "icp")
+        await self._get_config("persona", PersonaDefinition, "persona")
+        await self._get_config("thresholds", ThresholdConfig, "thresholds")

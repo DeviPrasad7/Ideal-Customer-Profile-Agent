@@ -43,3 +43,8 @@ async def get_thresholds(config_service: ConfigService = Depends(get_config_serv
 async def update_thresholds(thresholds: ThresholdConfig, config_service: ConfigService = Depends(get_config_service)):
     await config_service.update_thresholds(thresholds)
     return {"status": "success"}
+
+@router.post("/reset")
+async def reset_config(config_service: ConfigService = Depends(get_config_service)):
+    await config_service.reset_to_defaults()
+    return {"status": "success"}

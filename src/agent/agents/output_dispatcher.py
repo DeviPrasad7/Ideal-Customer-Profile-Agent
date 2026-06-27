@@ -1,8 +1,8 @@
 from typing import Any
+from core.logging import logger
 from ..state import GraphState
 from ..utils import Toolbox
 from services.memory_service import MemoryService
-from ..utils import MonitoringService
 from ..base import AgentNode
 from ..registry import register_agent
 
@@ -33,22 +33,20 @@ class OutputDispatcherNode(AgentNode):
                 event_hash = f"output_{prospect_id}"
                 await self.memory.mark_event_processed(event_hash, prospect_id)
             
-            # Ensure the state dict actually gets the updated status
-            if isinstance(state, dict):
-                state["overall_status"] = overall_status
-            
-            await self.memory.save_prospect_state(state)
+            # Build an updated state copy with the correct status for persistence.
+            # Do NOT mutate the incoming state dict – return the update dict for
+            # LangGraph to merge via its state reducers.
+            updated_state = {**state, "overall_status": overall_status}
+            await self.memory.save_prospect_state(updated_state)
             
             self.toolbox.emit_event("PROSPECT_COMPLETED", export_record)
             self.toolbox.send_webhook("http://example.com/webhook", export_record)
             
-            MonitoringService.log_success(prospect_id, "Execution completed successfully.")
             return {
                 "executed_agents": ["output_dispatcher_node"],
                 "overall_status": overall_status
             }
         except Exception as e:
-            MonitoringService.log_error(prospect_id, "OUTPUT_FAILED")
             if prospect_id != "unknown":
                 await self.memory.rollback_prospect_state(prospect_id)
             return {

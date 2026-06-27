@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, String, JSON, DateTime, Integer, Boolean, ForeignKey, Uuid
+from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import Column, String, JSON, DateTime, Integer, Boolean, ForeignKey, Uuid, Index
 import uuid
 from datetime import datetime, timezone
 
@@ -18,7 +18,8 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 Base = declarative_base()
 
 def get_utc_now():
-    return datetime.utcnow()
+    """Return a timezone-aware UTC datetime. Avoids the deprecated utcnow()."""
+    return datetime.now(timezone.utc)
 
 class Prospect(Base):
     __tablename__ = "prospects"
@@ -26,11 +27,14 @@ class Prospect(Base):
     id = Column(Uuid, primary_key=True, default=uuid.uuid4)
     company_name = Column(String, nullable=False)
     website = Column(String, nullable=True)
-    status = Column(String, nullable=False, default="PENDING")
+    status = Column(String, nullable=False, default="PENDING", index=True)
     state_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=get_utc_now)
-    updated_at = Column(DateTime, default=get_utc_now, onupdate=get_utc_now)
+    created_at = Column(DateTime(timezone=True), default=get_utc_now)
+    updated_at = Column(DateTime(timezone=True), default=get_utc_now, onupdate=get_utc_now)
     workflow_thread_id = Column(String, nullable=True)
+
+    # Relationships
+    hitl_requests = relationship("HITLRequest", back_populates="prospect", lazy="noload")
 
 class HITLRequest(Base):
     __tablename__ = "hitl_requests"
@@ -38,10 +42,13 @@ class HITLRequest(Base):
     id = Column(Uuid, primary_key=True, default=uuid.uuid4)
     prospect_id = Column(Uuid, ForeignKey("prospects.id"), nullable=False)
     summary = Column(String, nullable=False)
-    decision = Column(String, nullable=True)
+    decision = Column(String, nullable=True, index=True)
     corrections = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=get_utc_now)
-    resolved_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=get_utc_now)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationship – used by selectinload in HITLService.resolve_request
+    prospect = relationship("Prospect", back_populates="hitl_requests", lazy="noload")
 
 class Config(Base):
     __tablename__ = "config"
@@ -66,7 +73,10 @@ class ProcessedEvent(Base):
 
     event_hash = Column(String, primary_key=True)
     prospect_id = Column(String, nullable=False)
-    processed_at = Column(DateTime, default=get_utc_now)
+    # "processing" → set before workflow submission; "completed" → set after.
+    # A background cleanup job can pick up stale "processing" rows (outbox pattern).
+    status = Column(String, nullable=False, default="completed")
+    processed_at = Column(DateTime(timezone=True), default=get_utc_now)
 
 
 async def init_db():

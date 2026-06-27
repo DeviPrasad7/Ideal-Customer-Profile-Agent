@@ -9,6 +9,7 @@ from agent.utils import Toolbox
 from services.memory_service import MemoryService
 from models.database import async_session, init_db
 from core.settings import settings
+from services.config_service import ConfigService
 
 # Global trigger monitor instance
 trigger_monitor = TriggerMonitor()
@@ -31,8 +32,15 @@ async def lifespan(app: FastAPI):
     )
     
     memory_service = MemoryService(async_session)
+    config_service = ConfigService()
     
-    graph_app = await get_app(toolbox, memory_service)
+    # Create configuration dictionary to pass to agents
+    config_dict = {
+        "icp": config_service.get_icp(),
+        "personas": config_service.get_personas()
+    }
+    
+    graph_app = await get_app(toolbox, memory_service, config_dict)
     app.state.graph_app = graph_app
     
     # Inject graph_app into WorkflowService to avoid circular imports

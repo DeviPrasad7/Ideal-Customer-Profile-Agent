@@ -7,38 +7,25 @@ from psycopg_pool import AsyncConnectionPool
 from core.settings import settings
 
 from .state import GraphState
-from .agents import (
-    planner_node,
-    monitor_node,
-    score_node,
-    hitl_gateway_node,
-    tech_stack_detector_node,
-    enricher_node,
-    competitor_intel_node,
-    cross_validator_node,
-    summarizer_node,
-    output_dispatcher_node,
-    persona_matcher_node,
-    contact_finder_node
-)
+from .registry import registry
+from .agents.planner import PlannerNode
 
-def setup_graph(toolbox, memory_service):
+# Ensure all agents are registered by importing the agents package
+import agent.agents
+
+def setup_graph(toolbox, memory_service, config: dict):
     # Initialize graph
     workflow = StateGraph(GraphState)
 
-    # Add all nodes with injected dependencies
-    workflow.add_node("planner_node", partial(planner_node, toolbox=toolbox, memory=memory_service))
-    workflow.add_node("monitor_node", partial(monitor_node, toolbox=toolbox, memory=memory_service))
-    workflow.add_node("score_node", partial(score_node, toolbox=toolbox, memory=memory_service))
-    workflow.add_node("hitl_gateway_node", partial(hitl_gateway_node, toolbox=toolbox, memory=memory_service))
-    workflow.add_node("tech_stack_detector_node", partial(tech_stack_detector_node, toolbox=toolbox, memory=memory_service))
-    workflow.add_node("enricher_node", partial(enricher_node, toolbox=toolbox, memory=memory_service))
-    workflow.add_node("competitor_intel_node", partial(competitor_intel_node, toolbox=toolbox, memory=memory_service))
-    workflow.add_node("cross_validator_node", partial(cross_validator_node, toolbox=toolbox, memory=memory_service))
-    workflow.add_node("persona_matcher_node", partial(persona_matcher_node, toolbox=toolbox, memory=memory_service))
-    workflow.add_node("contact_finder_node", partial(contact_finder_node, toolbox=toolbox, memory=memory_service))
-    workflow.add_node("summarizer_node", partial(summarizer_node, toolbox=toolbox, memory=memory_service))
-    workflow.add_node("output_dispatcher_node", partial(output_dispatcher_node, toolbox=toolbox, memory=memory_service))
+    # Instantiate and add the planner node manually
+    planner_instance = PlannerNode(toolbox, memory_service, config, registry)
+    workflow.add_node("planner_node", planner_instance)
+
+    # Add all registered nodes dynamically
+    for name in registry.list_agents():
+        agent_cls = registry.get_agent(name)
+        agent_instance = agent_cls(toolbox, memory_service, config)
+        workflow.add_node(name, agent_instance)
 
     # All paths start at the planner
     workflow.add_edge(START, "planner_node")
@@ -67,22 +54,16 @@ def setup_graph(toolbox, memory_service):
     )
     
     # All worker nodes return to the planner so it can decide the next step
-    workflow.add_edge("monitor_node", "planner_node")
-    workflow.add_edge("score_node", "planner_node")
-    workflow.add_edge("tech_stack_detector_node", "planner_node")
-    workflow.add_edge("enricher_node", "planner_node")
-    workflow.add_edge("competitor_intel_node", "planner_node")
-    workflow.add_edge("cross_validator_node", "planner_node")
-    workflow.add_edge("persona_matcher_node", "planner_node")
-    workflow.add_edge("contact_finder_node", "planner_node")
-    workflow.add_edge("summarizer_node", "planner_node")
-    workflow.add_edge("hitl_gateway_node", "planner_node")
-    workflow.add_edge("output_dispatcher_node", END) # dispatcher always ends
+    for name in registry.list_agents():
+        if name == "output_dispatcher_node":
+            workflow.add_edge(name, END) # dispatcher always ends
+        else:
+            workflow.add_edge(name, "planner_node")
 
     return workflow
 
-async def get_app(toolbox, memory_service):
-    workflow = setup_graph(toolbox, memory_service)
+async def get_app(toolbox, memory_service, config: dict):
+    workflow = setup_graph(toolbox, memory_service, config)
     
     # PostgreSQL-backed checkpointer for durable HITL state
     connection_string = settings.get_checkpoint_db_url()

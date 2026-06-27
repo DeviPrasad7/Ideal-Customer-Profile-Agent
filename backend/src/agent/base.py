@@ -39,6 +39,10 @@ class SafeAgentWrapper:
         try:
             return await self.agent(state)
         except Exception as e:
+            # LangGraph uses special exceptions for control flow (like interrupts). Let them propagate.
+            if e.__class__.__name__ in ["GraphInterrupt", "NodeInterrupt"]:
+                raise e
+                
             from core.logging import logger
             logger.error(f"Agent {self.agent_name} failed with unhandled exception", error=str(e), agent=self.agent_name)
             

@@ -3,17 +3,13 @@ import requests
 import os
 import json
 import time
-from streamlit_autorefresh import st_autorefresh
 from datetime import datetime
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="ICP Agent Platform", layout="wide", page_icon="🤖")
 
-st_autorefresh(interval=5000, key="refresh")
-
 st.title("B2B SaaS Agentic Platform")
-st.caption(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # Initialize session state for optimistic UI and balloons
 if "optimistic_prospects" not in st.session_state:
@@ -64,88 +60,98 @@ with tab1:
                     except Exception as e:
                         st.error(f"Error submitting prospect: {e}")
 
-    st.subheader("Live Prospect Queue")
-    try:
-        response = requests.get(f"{API_URL}/api/prospects?limit=50")
-        if response.status_code == 200:
-            prospects_data = response.json()
-            
-            # Merge optimistic rows
-            fetched_names = {p["company_name"] for p in prospects_data}
-            pending_optimistic = [p for p in st.session_state.optimistic_prospects if p["company_name"] not in fetched_names]
-            st.session_state.optimistic_prospects = pending_optimistic # keep only those not yet in db
-            
-            all_prospects = pending_optimistic + prospects_data
-            
-            if all_prospects:
-                for p in all_prospects:
-                    status = p.get("status", "UNKNOWN")
-                    # Check for completed prospect for balloon effect
-                    if status == "COMPLETED" and p.get("id") and p.get("id") not in st.session_state.completed_prospects:
-                        st.balloons()
-                        st.session_state.completed_prospects.add(p.get("id"))
-                    
-                    # Highlight completed
-                    border_color = "green" if status == "COMPLETED" else "gray"
-                    emoji = "✅" if status == "COMPLETED" else "⏳" if status in ["PENDING", "IN_PROGRESS", "WORKFLOW STARTING"] else "⚠️"
-                    
-                    with st.container(border=True):
-                        c1, c2, c3, c4 = st.columns([3, 2, 2, 2])
-                        c1.markdown(f"**{emoji} {p['company_name']}**")
-                        c2.write(status)
-                        c3.write(f"Updated: {p['updated_at'][:19].replace('T', ' ')}")
+    @st.fragment(run_every="5s")
+    def render_prospect_queue():
+        st.subheader("Live Prospect Queue")
+        try:
+            response = requests.get(f"{API_URL}/api/prospects?limit=50")
+            if response.status_code == 200:
+                prospects_data = response.json()
+                
+                # Merge optimistic rows
+                fetched_names = {p["company_name"] for p in prospects_data}
+                pending_optimistic = [p for p in st.session_state.optimistic_prospects if p["company_name"] not in fetched_names]
+                st.session_state.optimistic_prospects = pending_optimistic # keep only those not yet in db
+                
+                all_prospects = pending_optimistic + prospects_data
+                # Sort newest first
+                all_prospects = sorted(all_prospects, key=lambda x: x.get("updated_at", ""), reverse=True)
+                
+                if all_prospects:
+                    for p in all_prospects:
+                        status = p.get("status", "UNKNOWN")
+                        # Check for completed prospect for balloon effect
+                        if status == "COMPLETED" and p.get("id") and p.get("id") not in st.session_state.completed_prospects:
+                            st.balloons()
+                            st.session_state.completed_prospects.add(p.get("id"))
+                        
+                        # Highlight completed
+                        border_color = "green" if status == "COMPLETED" else "gray"
+                        emoji = "✅" if status == "COMPLETED" else "⏳" if status in ["PENDING", "IN_PROGRESS", "WORKFLOW STARTING"] else "⚠️"
+                        
+                        with st.container(border=True):
+                            c1, c2, c3, c4 = st.columns([3, 2, 2, 2])
+                            c1.markdown(f"**{emoji} {p['company_name']}**")
+                            c2.write(status)
+                            c3.write(f"Updated: {p['updated_at'][:19].replace('T', ' ')}")
+                else:
+                    st.info("No prospects in the pipeline yet.")
             else:
-                st.info("No prospects in the pipeline yet.")
-        else:
-            st.error("Failed to fetch prospects from backend.")
-    except Exception as e:
-        st.error(f"Error connecting to backend: {e}")
+                st.error("Failed to fetch prospects from backend.")
+        except Exception as e:
+            st.error(f"Error connecting to backend: {e}")
+
+    render_prospect_queue()
 
 # ==========================================
 # Tab 2: HITL Requests
 # ==========================================
 with tab2:
-    st.header("Human-in-the-Loop Pending Approvals")
-    try:
-        response = requests.get(f"{API_URL}/api/hitl/pending")
-        if response.status_code == 200:
-            requests_data = response.json()
-            if not requests_data:
-                st.info("No pending HITL requests.")
-            for req in requests_data:
-                with st.container(border=True):
-                    st.markdown(f"### Prospect ID: {req.get('prospect_id', 'Unknown')}")
-                    st.write(f"**Reason:** {req.get('summary', 'No summary provided')}")
-                    
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        if st.button("Approve", key=f"app_{req['id']}", use_container_width=True, type="primary"):
-                            try:
-                                r = requests.post(f"{API_URL}/api/hitl/{req['id']}/approve")
-                                if r.status_code == 200:
-                                    st.toast("Request Approved!", icon="✅")
-                                    time.sleep(0.5)
-                                    st.rerun()
-                                else:
-                                    st.error("Approval failed.")
-                            except Exception as e:
-                                st.error(f"Error: {e}")
-                    with c2:
-                        if st.button("Reject", key=f"rej_{req['id']}", use_container_width=True):
-                            try:
-                                r = requests.post(f"{API_URL}/api/hitl/{req['id']}/reject")
-                                if r.status_code == 200:
-                                    st.toast("Request Rejected!", icon="🛑")
-                                    time.sleep(0.5)
-                                    st.rerun()
-                                else:
-                                    st.error("Rejection failed.")
-                            except Exception as e:
-                                st.error(f"Error: {e}")
-        else:
-            st.error("Failed to load HITL requests")
-    except Exception as e:
-        st.error(f"Error: {e}")
+    @st.fragment(run_every="5s")
+    def render_hitl_requests():
+        st.header("Human-in-the-Loop Pending Approvals")
+        try:
+            response = requests.get(f"{API_URL}/api/hitl/pending")
+            if response.status_code == 200:
+                requests_data = response.json()
+                if not requests_data:
+                    st.info("No pending HITL requests.")
+                for req in requests_data:
+                    with st.container(border=True):
+                        st.markdown(f"### Prospect ID: {req.get('prospect_id', 'Unknown')}")
+                        st.write(f"**Reason:** {req.get('summary', 'No summary provided')}")
+                        
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            if st.button("Approve", key=f"app_{req['id']}", use_container_width=True, type="primary"):
+                                try:
+                                    r = requests.post(f"{API_URL}/api/hitl/{req['id']}/approve")
+                                    if r.status_code == 200:
+                                        st.toast("Request Approved!", icon="✅")
+                                        time.sleep(0.5)
+                                        st.rerun()
+                                    else:
+                                        st.error("Approval failed.")
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+                        with c2:
+                            if st.button("Reject", key=f"rej_{req['id']}", use_container_width=True):
+                                try:
+                                    r = requests.post(f"{API_URL}/api/hitl/{req['id']}/reject")
+                                    if r.status_code == 200:
+                                        st.toast("Request Rejected!", icon="🛑")
+                                        time.sleep(0.5)
+                                        st.rerun()
+                                    else:
+                                        st.error("Rejection failed.")
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+            else:
+                st.error("Failed to load HITL requests")
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+    render_hitl_requests()
 
 # ==========================================
 # Tab 3: Configuration
@@ -224,39 +230,46 @@ with tab3:
 # Tab 4: Live Logs
 # ==========================================
 with tab4:
-    st.header("Live Agent Logs")
-    st.write("Real-time stream of agent events across the system.")
-    
-    try:
-        response = requests.get(f"{API_URL}/api/events")
-        if response.status_code == 200:
-            events_data = response.json().get("events", [])
-            
-            if not events_data:
-                st.info("No events yet.")
-            else:
-                with st.container(height=600):
-                    for evt in events_data:
-                        evt_time = datetime.fromtimestamp(evt.get("time", time.time())).strftime('%H:%M:%S')
-                        evt_type = evt.get("type", "UNKNOWN")
-                        payload = evt.get("payload", {})
-                        
-                        # Formatting based on event type
-                        if "FAILED" in evt_type or "ERROR" in evt_type:
-                            color = "red"
-                        elif "SUCCESS" in evt_type or "COMPLETED" in evt_type:
-                            color = "green"
-                        else:
-                            color = "blue"
+    @st.fragment(run_every="5s")
+    def render_live_logs():
+        st.header("Live Agent Logs")
+        st.write("Real-time stream of agent events across the system.")
+        
+        try:
+            response = requests.get(f"{API_URL}/api/events")
+            if response.status_code == 200:
+                events_data = response.json().get("events", [])
+                
+                # Reverse to show latest first
+                events_data = list(reversed(events_data))
+                
+                if not events_data:
+                    st.info("No events yet.")
+                else:
+                    with st.container(height=600):
+                        for evt in events_data:
+                            evt_time = datetime.fromtimestamp(evt.get("time", time.time())).strftime('%H:%M:%S')
+                            evt_type = evt.get("type", "UNKNOWN")
+                            payload = evt.get("payload", {})
                             
-                        st.markdown(f"**[{evt_time}]** :{color}[{evt_type}]")
-                        with st.expander("View Payload"):
-                            st.json(payload)
-                        st.divider()
-        else:
-            st.error("Failed to fetch events from backend.")
-    except Exception as e:
-        st.error(f"Error connecting to backend: {e}")
+                            # Formatting based on event type
+                            if "FAILED" in evt_type or "ERROR" in evt_type:
+                                color = "red"
+                            elif "SUCCESS" in evt_type or "COMPLETED" in evt_type:
+                                color = "green"
+                            else:
+                                color = "blue"
+                                
+                            st.markdown(f"**[{evt_time}]** :{color}[{evt_type}]")
+                            with st.expander("View Payload"):
+                                st.json(payload)
+                            st.divider()
+            else:
+                st.error("Failed to fetch events from backend.")
+        except Exception as e:
+            st.error(f"Error connecting to backend: {e}")
+
+    render_live_logs()
 
 # Footer
 st.markdown("---")

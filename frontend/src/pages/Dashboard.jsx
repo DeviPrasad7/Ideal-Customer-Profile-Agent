@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { prospectsService, eventsService } from '../services/api';
 import { PageHeader, Card, Button, Badge, Modal, Input } from '../components/UI';
 import { Plus, Globe, Activity, CheckCircle2, AlertTriangle, Clock, Terminal as TerminalIcon, Radio } from 'lucide-react';
+import WorkflowGraph from '../components/WorkflowGraph';
 
 export default function Dashboard() {
   const [prospects, setProspects] = useState([]);
@@ -16,6 +17,7 @@ export default function Dashboard() {
   // Streaming state
   const [activeStreamId, setActiveStreamId] = useState(null);
   const [streamLogs, setStreamLogs] = useState([]);
+  const [currentState, setCurrentState] = useState(null);
   const logsEndRef = useRef(null);
 
   const fetchProspects = async () => {
@@ -76,7 +78,10 @@ export default function Dashboard() {
     sse.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        setStreamLogs(prev => [...prev, { ts: new Date().toISOString(), agent: data.agent || 'AI', msg: data.message || event.data }]);
+        setStreamLogs(prev => [...prev, { ts: new Date().toISOString(), agent: data.agent || 'AI', msg: data.message || event.data, type: data.type, payload: data.payload }]);
+        if (data.type === 'state_update' && data.payload) {
+          setCurrentState(data.payload);
+        }
       } catch (e) {
         setStreamLogs(prev => [...prev, { ts: new Date().toISOString(), agent: 'AI', msg: event.data }]);
       }
@@ -93,6 +98,7 @@ export default function Dashboard() {
     setShowAddForm(false);
     setActiveStreamId(null);
     setStreamLogs([]);
+    setCurrentState(null);
     setSubmitting(false);
     fetchProspects();
   };
@@ -175,48 +181,51 @@ export default function Dashboard() {
             <button type="submit" style={{ display: 'none' }}></button>
           </form>
         ) : (
-          <div style={{ display: 'flex', gap: '24px' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Discovered Data</div>
-              <div className="flex-col" style={{ gap: '12px' }}>
-                <div style={{ padding: '12px', background: 'var(--bg-main)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Tech Stack</div>
-                  {!streamLogs.some(l => l.msg.includes('Tech stack')) ? (
-                    <div style={{ height: '16px', background: '#e6e2d8', borderRadius: '4px', width: '80%', animation: 'pulse 1.5s infinite' }} />
-                  ) : (
-                    <div style={{ fontSize: '13px' }}>React, Python, AWS (Extracted)</div>
-                  )}
-                </div>
-                <div style={{ padding: '12px', background: 'var(--bg-main)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Employee Count</div>
-                  {!streamLogs.some(l => l.msg.includes('employee')) ? (
-                    <div style={{ height: '16px', background: '#e6e2d8', borderRadius: '4px', width: '50%', animation: 'pulse 1.5s infinite' }} />
-                  ) : (
-                    <div style={{ fontSize: '13px' }}>150 - 250 verified</div>
-                  )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <WorkflowGraph stateLogs={streamLogs} currentState={currentState} />
+            <div style={{ display: 'flex', gap: '24px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Discovered Data</div>
+                <div className="flex-col" style={{ gap: '12px' }}>
+                  <div style={{ padding: '12px', background: 'var(--bg-main)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+                    <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Tech Stack</div>
+                    {!currentState?.data?.tech_stack ? (
+                      <div style={{ height: '16px', background: '#e6e2d8', borderRadius: '4px', width: '80%', animation: 'pulse 1.5s infinite' }} />
+                    ) : (
+                      <div style={{ fontSize: '13px' }}>{(currentState.data.tech_stack || []).join(', ')} (Extracted)</div>
+                    )}
+                  </div>
+                  <div style={{ padding: '12px', background: 'var(--bg-main)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)' }}>
+                    <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: '8px' }}>Employee Count</div>
+                    {!currentState?.data?.employee_count ? (
+                      <div style={{ height: '16px', background: '#e6e2d8', borderRadius: '4px', width: '50%', animation: 'pulse 1.5s infinite' }} />
+                    ) : (
+                      <div style={{ fontSize: '13px' }}>{currentState.data.employee_count} verified</div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="terminal-window" style={{ flex: 2 }}>
-              <div className="terminal-header">
-                <span>Execution Trace — {activeStreamId}</span>
-              </div>
-              <div className="terminal-body">
-                {streamLogs.map((log, i) => (
-                  <div key={i} className="terminal-line">
-                    <span className="terminal-timestamp">[{new Date(log.ts).toLocaleTimeString()}]</span>
-                    <span className="terminal-agent">{log.agent}:</span>
-                    <span className="terminal-msg">{log.msg}</span>
-                  </div>
-                ))}
-                {submitting && (
-                  <div className="terminal-line" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-tertiary)', marginTop: '8px' }}>
-                    <div className="spinner" style={{ width: '12px', height: '12px', margin: 0, borderWidth: '2px' }} />
-                    Awaiting output...
-                  </div>
-                )}
-                <div ref={logsEndRef} />
+              
+              <div className="terminal-window" style={{ flex: 2, maxHeight: '300px', overflowY: 'auto' }}>
+                <div className="terminal-header" style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+                  <span>Execution Trace — {activeStreamId}</span>
+                </div>
+                <div className="terminal-body">
+                  {streamLogs.map((log, i) => (
+                    <div key={i} className="terminal-line">
+                      <span className="terminal-timestamp">[{new Date(log.ts).toLocaleTimeString()}]</span>
+                      <span className="terminal-agent">{log.agent}:</span>
+                      <span className="terminal-msg">{log.msg}</span>
+                    </div>
+                  ))}
+                  {submitting && (
+                    <div className="terminal-line" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-tertiary)', marginTop: '8px' }}>
+                      <div className="spinner" style={{ width: '12px', height: '12px', margin: 0, borderWidth: '2px' }} />
+                      Awaiting output...
+                    </div>
+                  )}
+                  <div ref={logsEndRef} />
+                </div>
               </div>
             </div>
           </div>

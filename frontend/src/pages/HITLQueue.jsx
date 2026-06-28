@@ -86,13 +86,21 @@ export default function HITLQueue() {
                 {req.company_name || `Target: ${req.prospect_id.split('-')[0]}`}
               </h3>
               
-              <div style={{ padding: '12px', background: '#fdf5eb', borderLeft: '3px solid var(--warning)', borderRadius: '0 4px 4px 0', fontSize: '13px', color: '#b25000', marginBottom: '24px', flex: 1 }}>
+              <div style={{ padding: '12px', background: '#fdf5eb', borderLeft: '3px solid var(--warning)', borderRadius: '0 4px 4px 0', fontSize: '13px', color: '#b25000', marginBottom: '24px', flex: 1, cursor: 'pointer' }} onClick={() => openReview(req)} title="Click to view full details">
                 {req.summary || 'The agent could not confidently verify the firmographic data against the ICP.'}
               </div>
 
-              <Button variant="secondary" icon={<FileSearch size={16} />} onClick={() => openReview(req)} style={{ width: '100%' }}>
-                Review Document
-              </Button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button variant="secondary" icon={<FileSearch size={16} />} onClick={() => openReview(req)} style={{ flex: 1 }}>
+                  Inspect Details
+                </Button>
+                <Button variant="success" icon={<Check size={16} />} onClick={() => handleAction(req.id, 'approve')} disabled={!!processingId} title="Quick Approve">
+                  Accept
+                </Button>
+                <Button variant="danger" icon={<X size={16} />} onClick={() => handleAction(req.id, 'reject')} disabled={!!processingId} title="Quick Reject">
+                  Decline
+                </Button>
+              </div>
             </Card>
           ))}
         </div>

@@ -16,12 +16,14 @@ export const configService = {
   updatePersona: async (data) => (await api.put('/api/config/persona', data)).data,
   getThresholds: async () => (await api.get('/api/config/thresholds')).data,
   updateThresholds: async (data) => (await api.put('/api/config/thresholds', data)).data,
+  resetConfig: async () => (await api.post('/api/config/reset')).data,
 };
 
 export const prospectsService = {
   getProspects: async (params) => (await api.get('/api/prospects', { params })).data,
   createProspect: async (data) => (await api.post('/api/prospects', data)).data,
   getProspectDetail: async (id) => (await api.get(`/api/prospects/${id}`)).data,
+  getProspectStreamUrl: (id) => `${API_URL}/api/prospects/${id}/stream`,
 };
 
 export const hitlService = {
@@ -40,8 +42,11 @@ export const agentService = {
 export const triggerService = {
   getSources: async () => (await api.get('/api/triggers/sources')).data,
   createSource: async (data) => (await api.post('/api/triggers/sources', data)).data,
+  deleteSource: async (id) => (await api.delete(`/api/triggers/sources/${id}`)).data,
+  start: async () => (await api.post('/api/triggers/start')).data,
+  stop: async () => (await api.post('/api/triggers/stop')).data,
 };
 
 export const eventsService = {
-  getEvents: async () => (await api.get('/api/events')).data,
+  getEvents: async () => (await api.get('/api/events')).data.events,
 };

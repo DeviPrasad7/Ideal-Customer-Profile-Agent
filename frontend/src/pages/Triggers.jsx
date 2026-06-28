@@ -27,11 +27,34 @@ export default function Triggers() {
   }, []);
 
   const handleStartMonitor = async () => {
-    setMonitorActive(true);
+    try {
+      await triggerService.start();
+      setMonitorActive(true);
+    } catch (error) {
+      console.error('Failed to start scanners:', error);
+      alert('Failed to start scanners.');
+    }
   };
 
   const handleStopMonitor = async () => {
-    setMonitorActive(false);
+    try {
+      await triggerService.stop();
+      setMonitorActive(false);
+    } catch (error) {
+      console.error('Failed to stop scanners:', error);
+      alert('Failed to stop scanners.');
+    }
+  };
+
+  const handleDeleteSource = async (id) => {
+    if (!window.confirm('Delete this source?')) return;
+    try {
+      await triggerService.deleteSource(id);
+      fetchSources();
+    } catch (error) {
+      console.error('Failed to delete source:', error);
+      alert('Failed to delete source.');
+    }
   };
 
   const handleAddSubmit = async (e) => {
@@ -139,6 +162,7 @@ export default function Triggers() {
                 <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600 }}>Vector</th>
                 <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600 }}>Frequency</th>
                 <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600 }}>Status</th>
+                <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -156,6 +180,9 @@ export default function Triggers() {
                   <td style={{ padding: '16px 24px', color: 'var(--text-secondary)' }}>{s.interval_seconds}s</td>
                   <td style={{ padding: '16px 24px' }}>
                     {s.enabled ? <Badge variant="success">Active</Badge> : <Badge variant="danger">Disabled</Badge>}
+                  </td>
+                  <td style={{ padding: '16px 24px' }}>
+                    <Button variant="danger" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => handleDeleteSource(s.id)}>Delete</Button>
                   </td>
                 </tr>
               ))}

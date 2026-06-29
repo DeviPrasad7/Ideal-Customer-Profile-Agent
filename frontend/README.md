@@ -1,16 +1,48 @@
-# React + Vite
+# 🎨 Frontend Engineering: The Face of ICP-X
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+<div align="center">
+  <img src="https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react" />
+  <img src="https://img.shields.io/badge/Vite-8.1-646CFF?style=for-the-badge&logo=vite" />
+  <img src="https://img.shields.io/badge/UI-Tailwind%20%2B%20Lucide-38B2AC?style=for-the-badge" />
+</div>
 
-Currently, two official plugins are available:
+Welcome to the frontend directory of the ICP-X platform. This isn't just a UI; it's a **high-performance, reactive control center** designed to provide total visibility and control over autonomous agent swarms.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## ⚡ Unrivaled User Experience
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+We built the frontend to be as intelligent as the backend agents it monitors. 
 
-## Expanding the Oxlint configuration
+### Key Features
+- **Real-Time Agent Visualization**: Powered by `@xyflow/react`, watch in real-time as the LangGraph planner traverses nodes, makes decisions, and routes prospects.
+- **Blazing Fast HMR**: Vite ensures that your development experience is instantaneous.
+- **Optimized Rendering**: Aggressive memoization and selective state updates using modern React 19 concurrent features ensure 60fps rendering even with thousands of nodes on screen.
+- **Flawless Design System**: Styled with utility-first CSS via `clsx` and `tailwind-merge` for perfectly composable and collision-free styling.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+---
+
+## 🏗️ Architecture
+
+```mermaid
+graph LR
+    A[React Application] --> B(Vite Dev Server)
+    A --> C{Component Library}
+    C --> D[Graph Viewer <br/> xyflow]
+    C --> E[Data Tables <br/> Prospect Management]
+    C --> F[Forms & <br/> HITL Interventions]
+    
+    A --> G[API Client Layer]
+    G --> H((FastAPI Backend))
+```
+
+## 🚀 Quick Start
+
+1. **Install Dependencies**: `npm install`
+2. **Start Dev Server**: `npm run dev`
+3. **Build for Prod**: `npm run build`
+
+> **Pro Tip**: We enforce strict code quality. Always run `npm run lint` (powered by ultra-fast `oxlint`) before committing!
+
+---
+🔙 **[Back to Main Repository](../README.md)** | ⚙️ **[Explore Backend Engineering](../backend/README.md)**

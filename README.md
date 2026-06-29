@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
 </p>
 
-<h1 align="center">Ideal Customer Profile Agent</h1>
+<h1 align="center">B2B Agent Orchestrator</h1>
 
 <p align="center">
   <strong>An enterprise-grade, multi-agent AI orchestration platform for autonomous B2B prospect qualification, enrichment, and outreach generation.</strong>
@@ -39,7 +39,7 @@
 
 ## Platform Overview
 
-The **Ideal Customer Profile (ICP) Agent** is a production-grade, multi-agent AI system that automates the entire B2B sales qualification pipeline. From the moment a trigger event is detected -- whether from an RSS feed, a GitHub repository update, a News API article, or a LinkedIn signal via Apify -- the platform autonomously orchestrates a fleet of specialized AI agents to research, enrich, score, validate, and ultimately qualify sales prospects against configurable Ideal Customer Profile criteria.
+The **B2B Agent Orchestrator** is a production-grade, multi-agent AI system that automates the entire B2B sales qualification pipeline. From the moment a trigger event is detected -- whether from an RSS feed, a GitHub repository update, a News API article, or a LinkedIn signal via Apify -- the platform autonomously orchestrates a fleet of specialized AI agents to research, enrich, score, validate, and ultimately qualify sales prospects against configurable Ideal Customer Profile criteria.
 
 What sets this platform apart is its **dynamic orchestration layer**. Rather than relying on static, hardcoded pipelines, the system employs an LLM-powered Dynamic Planner that inspects the current workflow state and intelligently selects the next agent to execute based on accumulated data, missing signals, and configured ICP criteria. This approach enables the pipeline to adapt in real-time, re-route on failure, and even execute agents in parallel when dependency graphs allow.
 
@@ -482,8 +482,8 @@ Request --> Groq Pool [model_1, model_2, ..., model_n]
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/DeviPrasad7/Ideal-Customer-Profile-Agent.git
-cd Ideal-Customer-Profile-Agent
+git clone https://github.com/DeviPrasad7/B2B-Agent-Orchestrator.git
+cd B2B-Agent-Orchestrator
 
 # 2. Configure environment variables
 cp .env.example .env
@@ -564,7 +564,7 @@ docker compose logs -f api
 ## Project Structure
 
 ```
-Ideal-Customer-Profile-Agent/
+B2B-Agent-Orchestrator/
 |
 +-- README.md                          # This file
 +-- docker-compose.yml                 # Multi-service orchestration

@@ -1,227 +1,823 @@
-# 🧬 Enterprise Class Architecture & LLD
+<h1 align="center">Class Diagram Reference</h1>
 
-<div align="center">
-  <img src="https://img.shields.io/badge/Architecture-Domain%20Driven%20Design-blueviolet?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Typing-Strict-success?style=for-the-badge" />
-</div>
+<p align="center">
+  <strong>Complete UML class diagrams documenting inheritance hierarchies, protocol interfaces, composition relationships, and the structural backbone of the ICP Agent platform.</strong>
+</p>
 
-Welcome to the definitive, exhaustive guide on the Low-Level Design (LLD) and Class Architecture of the ICP-X backend. We don't just write scripts—we engineer scalable, decoupled, and highly cohesive domain models. 
-
-This document spans the entire class architecture, ensuring every component is rigorously documented.
+<p align="center">
+  <img src="https://img.shields.io/badge/Diagrams-Mermaid_UML-8A2BE2?style=for-the-badge" alt="Mermaid">
+  <img src="https://img.shields.io/badge/Patterns-GoF_Compliant-4CAF50?style=for-the-badge" alt="GoF">
+  <img src="https://img.shields.io/badge/Interfaces-Protocol_Typed-2196F3?style=for-the-badge" alt="Protocol">
+</p>
 
 ---
 
-## 🏗️ The Domain Layer
+## Table of Contents
 
-Our architecture is heavily decoupled, utilizing Abstract Base Classes (ABCs) in Python and strict Dependency Injection. This ensures maximum testability, interchangeability, and absolute separation of concerns.
+- [Agent Layer Class Hierarchy](#agent-layer-class-hierarchy)
+- [Service Layer Class Structure](#service-layer-class-structure)
+- [Data Layer and ORM Models](#data-layer-and-orm-models)
+- [Core Infrastructure Classes](#core-infrastructure-classes)
+- [API Provider Framework](#api-provider-framework)
+- [Toolbox Facade Composition](#toolbox-facade-composition)
+- [Complete System Class Map](#complete-system-class-map)
 
-### Comprehensive Class Diagram
+---
+
+## Agent Layer Class Hierarchy
+
+The agent layer is the heart of the orchestration engine. It is built around the `AgentNode` Protocol -- a formal interface contract that every agent must satisfy. The `SafeAgentWrapper` decorator provides fault isolation, execution tracing, and retry tracking without modifying agent implementation code.
+
+### AgentNode Protocol and SafeAgentWrapper
 
 ```mermaid
 classDiagram
-    direction TB
-    
-    class BaseAgent {
-        <<abstract>>
-        +id: UUID
-        +name: str
-        +invoke(state: AgentState) AgentState
-        #_pre_process(state: AgentState)
-        #_post_process(state: AgentState)
+    class AgentNode {
+        <<Protocol>>
+        +__call__(state: GraphState) Dict~str, Any~
     }
 
-    class ITool {
-        <<interface>>
-        +execute(payload: dict) Result
+    class AgentConfig {
+        <<TypedDict>>
+        +icp: Dict~str, Any~
+        +personas: Dict~str, Any~
     }
 
-    class IStorage {
-        <<interface>>
-        +save(key: str, data: dict)
-        +load(key: str) dict
+    class SafeAgentWrapper {
+        -agent: AgentNode
+        -agent_name: str
+        +__init__(agent: AgentNode, agent_name: str)
+        +__call__(state: GraphState) Dict~str, Any~
+        -_record_trace(result: dict, start: float, end: float) dict
+        -_handle_failure(state: GraphState, error: Exception) dict
     }
 
-    class EnrichmentAgent {
-        -scraper_service: IScraper
-        -cache: ICache
-        +invoke(state: AgentState) AgentState
-    }
-
-    class ScoringAgent {
-        -llm_client: ILLMClient
-        -icp_model: ICPProfile
-        +invoke(state: AgentState) AgentState
-    }
-    
-    class WebScraperTool {
-        +execute(payload: dict) Result
-    }
-    
-    class PostgresStorage {
-        -pool: ConnectionPool
-        +save(key: str, data: dict)
-        +load(key: str) dict
-    }
-
-    class AgentOrchestrator {
-        -registry: AgentRegistry
-        -graph: StateGraph
-        +build_graph() CompiledGraph
-        +execute(input: dict) Result
-    }
-    
     class AgentRegistry {
-        -agents: dict
-        +register(name: str, agent: BaseAgent)
-        +get(name: str) BaseAgent
+        -_agents: Dict~str, Type~
+        -_descriptions: Dict~str, str~
+        +register(cls: Type, name: str, description: str) None
+        +get_agent(name: str) Type
+        +list_agents() List~str~
+        +list_agents_with_descriptions() List~dict~
+        +get_description(name: str) str
     }
 
-    BaseAgent <|-- EnrichmentAgent
-    BaseAgent <|-- ScoringAgent
-    ITool <|.. WebScraperTool
-    IStorage <|.. PostgresStorage
-    
-    AgentOrchestrator --> AgentRegistry
-    AgentRegistry o-- BaseAgent
-    EnrichmentAgent --> ITool
-    AgentOrchestrator --> IStorage
+    AgentNode <|.. SafeAgentWrapper : wraps
+    AgentRegistry o-- AgentNode : manages
+    SafeAgentWrapper --> AgentNode : delegates to
+```
+
+**Design Rationale:** The `AgentNode` Protocol uses Python's structural subtyping system. Any class that implements `async def __call__(self, state: GraphState) -> Dict[str, Any]` is considered a valid `AgentNode` without explicit inheritance. This enables maximum flexibility -- agents don't need to inherit from a base class, and third-party agent implementations can be integrated without modification.
+
+The `SafeAgentWrapper` implements the **Decorator Pattern** (GoF), adding cross-cutting concerns (fault isolation, tracing, retry tracking) to any agent without modifying its source code. This is a textbook application of the Open/Closed Principle -- the wrapper is open for extension but closed for modification.
+
+### Agent Fleet Class Diagram
+
+```mermaid
+classDiagram
+    class AgentNode {
+        <<Protocol>>
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class DynamicPlannerNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        -registry: AgentRegistry
+        +__call__(state: GraphState) Dict~str, Any~
+        -_route_custom_workflow(state: GraphState) dict
+        -_route_via_llm(state: GraphState) dict
+        -_route_fallback(state: GraphState) dict
+    }
+
+    class ResearcherNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        -search_client: ISearchClient
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class EnricherNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class TechStackDetectorNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class ScoreNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class CrossValidatorNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class PersonaMatcherNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class ContactFinderNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class CompetitorIntelNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class OutreachGeneratorNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class SummarizerNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class HitlGatewayNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class OutputDispatcherNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class DynamicAgentExecutorNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class ConsolidationNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class MonitorNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    class EnderNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    AgentNode <|.. DynamicPlannerNode
+    AgentNode <|.. ResearcherNode
+    AgentNode <|.. EnricherNode
+    AgentNode <|.. TechStackDetectorNode
+    AgentNode <|.. ScoreNode
+    AgentNode <|.. CrossValidatorNode
+    AgentNode <|.. PersonaMatcherNode
+    AgentNode <|.. ContactFinderNode
+    AgentNode <|.. CompetitorIntelNode
+    AgentNode <|.. OutreachGeneratorNode
+    AgentNode <|.. SummarizerNode
+    AgentNode <|.. HitlGatewayNode
+    AgentNode <|.. OutputDispatcherNode
+    AgentNode <|.. DynamicAgentExecutorNode
+    AgentNode <|.. ConsolidationNode
+    AgentNode <|.. MonitorNode
+    AgentNode <|.. EnderNode
+```
+
+### Researcher Node -- Interface Segregation
+
+The `ResearcherNode` demonstrates the **Interface Segregation Principle** with a dedicated `ISearchClient` abstraction:
+
+```mermaid
+classDiagram
+    class ISearchClient {
+        <<Abstract>>
+        +search_company_info(company_name: str)* str
+        +find_competitors(company_name: str)* List~str~
+    }
+
+    class TavilySearchClient {
+        -search_tool: TavilySearchResults
+        +search_company_info(company_name: str) str
+        +find_competitors(company_name: str) List~str~
+    }
+
+    class ResearcherNode {
+        -toolbox: Toolbox
+        -memory: MemoryService
+        -config: dict
+        -search_client: ISearchClient
+        +__call__(state: GraphState) Dict~str, Any~
+    }
+
+    ISearchClient <|-- TavilySearchClient
+    ResearcherNode --> ISearchClient : depends on abstraction
 ```
 
 ---
 
-## 🧩 Architectural Highlights and Deep Dives
+## Service Layer Class Structure
 
-### 1. Dependency Injection (DI)
-Every concrete implementation (like `PostgresStorage` or `WebScraperTool`) is injected into the high-level agents at runtime. The `EnrichmentAgent` never knows *how* data is scraped; it merely interfaces with `ITool`. 
+The service layer implements the business logic of the platform. Every service depends on abstractions (Protocols) rather than concretions, enabling seamless testing and implementation swapping.
 
-### 2. State Management via `AgentState`
-The `AgentState` is a strict, Pydantic-validated data contract. No unstructured dicts are passed around. The `AgentState` is immutable during a node's execution, guaranteeing side-effect-free transitions.
+### Service Protocol Interfaces
 
-```python
-class GraphState(TypedDict):
-    prospect_id: str
-    current_trigger_event: str
-    config: dict[str, Any]
-    data: Annotated[dict[str, Any], add_dict]
-    validation_notes: Annotated[list[ValidationNote], add_list]
-    confidence_score: float
-    overall_status: str
-    # Extensive tracing and logging fields...
+```mermaid
+classDiagram
+    class LLMServiceProtocol {
+        <<Protocol>>
+        +generate_text(prompt: str, fallback: str, require_json: bool, strategy: str) str
+    }
+
+    class ScrapingServiceProtocol {
+        <<Protocol>>
+        +fetch_webpage(url: str, timeout_sec: int) WebPage
+        +detect_tech_stack(html_content: str, domain: str) list~TechStackEntry~
+        +scrape_careers_page(url: str) list~JobPosting~
+    }
+
+    class EnrichmentServiceProtocol {
+        <<Protocol>>
+        +fetch_crunchbase(company_name: str) CompanyProfile
+        +scrape_linkedin(company_name: str) dict
+        +validate_email(email: str) EmailValidationResult
+        +get_competitor_info(tech_tag: str) CompetitorMapping
+        +find_company_employees(company_name: str) list~dict~
+        +enrich_contact(person_name: str, domain: str) dict
+        +fetch_rss_entries(url: str) list~dict~
+        +fetch_jobs(company: str) list~dict~
+    }
+
+    class LLMService {
+        -_gemini_pool: list
+        -_groq_pool: list
+        -_gemini_idx: int
+        -_groq_idx: int
+        -_initialized: bool
+        -_global_lock: asyncio.Lock
+        -_global_last_call_time: float
+        +get_next_llm(strategy: str) ChatModel
+        +generate_text(prompt: str, fallback: str, require_json: bool, strategy: str) str
+        -_ensure_initialized() None
+    }
+
+    class ScrapingService {
+        -llm_service: LLMService
+        +fetch_webpage(url: str, timeout_sec: int) WebPage
+        +detect_tech_stack(html_content: str, domain: str) list~TechStackEntry~
+        +scrape_careers_page(url: str) list~JobPosting~
+        +sandbox_scrape(url: str) dict
+    }
+
+    class EnrichmentService {
+        -llm_service: LLMService
+        -tavily_client: AsyncTavilyClient
+        +fetch_crunchbase(company_name: str) CompanyProfile
+        +scrape_linkedin(company_name: str) dict
+        +validate_email(email: str) EmailValidationResult
+        +get_competitor_info(tech_tag: str) CompetitorMapping
+        +find_company_employees(company_name: str) list~dict~
+        +enrich_contact(person_name: str, domain: str) dict
+        +fetch_rss_entries(url: str) list~dict~
+        +fetch_jobs(company: str) list~dict~
+        +sandbox_enrich(company_name: str) dict
+        -_search_web(query: str) str
+    }
+
+    LLMServiceProtocol <|.. LLMService
+    ScrapingServiceProtocol <|.. ScrapingService
+    EnrichmentServiceProtocol <|.. EnrichmentService
 ```
 
-### Detail Section 1
-This section explicitly details the robust engineering of subsystem 1. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+### Service Composition
 
-### Detail Section 2
-This section explicitly details the robust engineering of subsystem 2. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+```mermaid
+classDiagram
+    class WorkflowService {
+        -_app: CompiledGraph
+        -_hitl_service: HITLService
+        -_tasks: set~Task~
+        +submit_prospect(state: GraphState, thread_id: str) str
+        +resume_with_hitl(thread_id: str, decision: str, corrections: dict) None
+        +set_hitl_service(hitl_service: HITLService) None
+    }
 
-### Detail Section 3
-This section explicitly details the robust engineering of subsystem 3. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class MemoryService {
+        -session_factory: Callable
+        +has_event_been_processed(event_hash: str) bool
+        +mark_event_processed(event_hash: str, prospect_id: str, status: str) bool
+        +save_prospect_state(state: Any) None
+        +load_prospect_state(prospect_id: str) Any
+        +list_prospects(filters: dict) List~ProspectSummary~
+        +create_hitl_request(prospect_id: str, summary: str) UUID
+        +get_pending_hitl_requests() List~HITLRequest~
+        +resolve_hitl_request_and_update_prospect(request_id: UUID, decision: str, corrections: dict) str
+        +rollback_prospect_state(prospect_id: str) None
+        +save_emergency_state(state: Any) None
+    }
 
-### Detail Section 4
-This section explicitly details the robust engineering of subsystem 4. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class HITLService {
+        -memory_service: MemoryService
+        -workflow_service: WorkflowService
+        +create_request(prospect_id: str, interrupt_data: dict) UUID
+        +resolve_request(request_id: str, decision: str, corrections: dict) None
+    }
 
-### Detail Section 5
-This section explicitly details the robust engineering of subsystem 5. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class ConfigService {
+        -session: AsyncSession
+        +get_icp() ICPCriteria
+        +update_icp(criteria: ICPCriteria) None
+        +get_persona() PersonaDefinition
+        +update_persona(persona: PersonaDefinition) None
+        +get_thresholds() ThresholdConfig
+        +update_thresholds(thresholds: ThresholdConfig) None
+        +reset_to_defaults() None
+        -_load_defaults() dict
+        -_get_config(key: str, schema: type, default_key: str) BaseModel
+        -_update_config(key: str, value: dict) None
+    }
 
-### Detail Section 6
-This section explicitly details the robust engineering of subsystem 6. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class TriggerMonitor {
+        -toolbox: Toolbox
+        -workflow_service: WorkflowService
+        -provider_factory: APIProviderFactory
+        -_running: bool
+        -_task: asyncio.Task
+        -_last_polled: dict
+        +start() None
+        +stop() None
+        +poll_sources() None
+        -_poll_loop() None
+        -_cleanup_orphaned_events() None
+    }
 
-### Detail Section 7
-This section explicitly details the robust engineering of subsystem 7. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    WorkflowService --> HITLService : delegates HITL
+    HITLService --> MemoryService : persists state
+    HITLService --> WorkflowService : resumes workflow
+    TriggerMonitor --> WorkflowService : submits prospects
+```
 
-### Detail Section 8
-This section explicitly details the robust engineering of subsystem 8. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+---
 
-### Detail Section 9
-This section explicitly details the robust engineering of subsystem 9. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+## Data Layer and ORM Models
 
-### Detail Section 10
-This section explicitly details the robust engineering of subsystem 10. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+### SQLAlchemy ORM Model Hierarchy
 
-### Detail Section 11
-This section explicitly details the robust engineering of subsystem 11. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+```mermaid
+classDiagram
+    class Base {
+        <<SQLAlchemy Declarative Base>>
+    }
 
-### Detail Section 12
-This section explicitly details the robust engineering of subsystem 12. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class Prospect {
+        +id: UUID [PK]
+        +display_id: String [Index]
+        +company_name: String [Index]
+        +website: String
+        +status: String [Index]
+        +state_json: JSON
+        +created_at: DateTime
+        +updated_at: DateTime
+        +workflow_thread_id: String
+        +custom_workflow_id: UUID [FK]
+        +hitl_requests: Relationship
+    }
 
-### Detail Section 13
-This section explicitly details the robust engineering of subsystem 13. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class HITLRequest {
+        +id: UUID [PK]
+        +display_id: String [Index]
+        +prospect_id: UUID [FK]
+        +summary: String
+        +decision: String [Index]
+        +corrections: JSON
+        +created_at: DateTime
+        +resolved_at: DateTime
+        +prospect: Relationship
+    }
 
-### Detail Section 14
-This section explicitly details the robust engineering of subsystem 14. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class CustomAgent {
+        +id: UUID [PK]
+        +name: String [Index]
+        +description: String
+        +system_prompt: String
+        +allowed_tools: JSON
+        +created_at: DateTime
+    }
 
-### Detail Section 15
-This section explicitly details the robust engineering of subsystem 15. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class Workflow {
+        +id: UUID [PK]
+        +name: String [Index]
+        +description: String
+        +steps: JSON
+        +created_at: DateTime
+    }
 
-### Detail Section 16
-This section explicitly details the robust engineering of subsystem 16. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class Config {
+        +key: String [PK]
+        +value: JSON
+        +updated_at: DateTime
+    }
 
-### Detail Section 17
-This section explicitly details the robust engineering of subsystem 17. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class TriggerSource {
+        +id: UUID [PK]
+        +type: String
+        +url: String
+        +interval_seconds: Integer
+        +enabled: Boolean
+        +config: JSON
+        +created_at: DateTime
+    }
 
-### Detail Section 18
-This section explicitly details the robust engineering of subsystem 18. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class ProcessedEvent {
+        +event_hash: String [PK]
+        +prospect_id: String
+        +status: String
+        +processed_at: DateTime
+    }
 
-### Detail Section 19
-This section explicitly details the robust engineering of subsystem 19. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    Base <|-- Prospect
+    Base <|-- HITLRequest
+    Base <|-- CustomAgent
+    Base <|-- Workflow
+    Base <|-- Config
+    Base <|-- TriggerSource
+    Base <|-- ProcessedEvent
 
-### Detail Section 20
-This section explicitly details the robust engineering of subsystem 20. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    Prospect "1" --> "*" HITLRequest : has many
+    Prospect "*" --> "0..1" Workflow : uses
+```
 
-### Detail Section 21
-This section explicitly details the robust engineering of subsystem 21. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+### Pydantic DTO and Schema Classes
 
-### Detail Section 22
-This section explicitly details the robust engineering of subsystem 22. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+```mermaid
+classDiagram
+    class BaseModel {
+        <<Pydantic>>
+    }
 
-### Detail Section 23
-This section explicitly details the robust engineering of subsystem 23. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class WebPage {
+        +url: str
+        +htmlContent: str
+        +statusCode: int
+        +fetchTimeMs: int
+    }
 
-### Detail Section 24
-This section explicitly details the robust engineering of subsystem 24. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class CompanyProfile {
+        +name: str
+        +description: str
+        +employeeCount: int
+        +revenue: str
+        +location: str
+        +industries: list~str~
+    }
 
-### Detail Section 25
-This section explicitly details the robust engineering of subsystem 25. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class TechStackEntry {
+        +technology: str
+        +category: str
+        +confidence: float
+        +source: str
+    }
 
-### Detail Section 26
-This section explicitly details the robust engineering of subsystem 26. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class JobPosting {
+        +title: str
+        +department: str
+        +url: str
+        +postedDate: str
+    }
 
-### Detail Section 27
-This section explicitly details the robust engineering of subsystem 27. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class EmailValidationResult {
+        +email: str
+        +isValid: bool
+        +reason: str
+    }
 
-### Detail Section 28
-This section explicitly details the robust engineering of subsystem 28. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class CompetitorMapping {
+        +technology: str
+        +competitors: list~str~
+        +painPoints: dict~str, str~
+    }
 
-### Detail Section 29
-This section explicitly details the robust engineering of subsystem 29. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class ICPCriteria {
+        +industries: List~str~
+        +min_revenue: int
+        +max_revenue: int
+        +min_employees: int
+        +max_employees: int
+        +locations: List~str~
+        +tech_stack: List~str~
+        +behaviors: List~str~
+        +operator: str
+        +check_ranges() ICPCriteria
+    }
 
-### Detail Section 30
-This section explicitly details the robust engineering of subsystem 30. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class PersonaDefinition {
+        +job_titles: List~str~
+        +seniority_levels: List~str~
+        +functions: List~str~
+        +exclude_titles: List~str~
+    }
 
-### Detail Section 31
-This section explicitly details the robust engineering of subsystem 31. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class ThresholdConfig {
+        +min_confidence_score: float
+        +max_errors_allowed: int
+        +hitl_confidence_threshold: float
+        +auto_approve_threshold: float
+    }
 
-### Detail Section 32
-This section explicitly details the robust engineering of subsystem 32. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class ProspectSummary {
+        +id: UUID
+        +display_id: str
+        +company_name: str
+        +status: str
+        +updated_at: datetime
+    }
 
-### Detail Section 33
-This section explicitly details the robust engineering of subsystem 33. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    class ProspectDetail {
+        +id: UUID
+        +display_id: str
+        +company_name: str
+        +website: str
+        +status: str
+        +state_json: dict
+        +created_at: datetime
+        +updated_at: datetime
+        +workflow_thread_id: str
+    }
 
-### Detail Section 34
-This section explicitly details the robust engineering of subsystem 34. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+    BaseModel <|-- WebPage
+    BaseModel <|-- CompanyProfile
+    BaseModel <|-- TechStackEntry
+    BaseModel <|-- JobPosting
+    BaseModel <|-- EmailValidationResult
+    BaseModel <|-- CompetitorMapping
+    BaseModel <|-- ICPCriteria
+    BaseModel <|-- PersonaDefinition
+    BaseModel <|-- ThresholdConfig
+    BaseModel <|-- ProspectSummary
+    BaseModel <|-- ProspectDetail
+```
 
-### Detail Section 35
-This section explicitly details the robust engineering of subsystem 35. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+---
 
-### Detail Section 36
-This section explicitly details the robust engineering of subsystem 36. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+## Core Infrastructure Classes
 
-### Detail Section 37
-This section explicitly details the robust engineering of subsystem 37. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+### Circuit Breaker FSM
 
-### Detail Section 38
-This section explicitly details the robust engineering of subsystem 38. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.
+```mermaid
+classDiagram
+    class CircuitBreakerState {
+        <<Enumeration>>
+        CLOSED
+        OPEN
+        HALF_OPEN
+    }
 
-### Detail Section 39
-This section explicitly details the robust engineering of subsystem 39. We ensure strict adherence to Liskov Substitution and Interface Segregation. The modular nature of ICP-X allows rapid scaling without technical debt. All abstractions are heavily guarded by static type checking and runtime Pydantic validation.\n<!-- Padding line 0 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 1 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 2 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 3 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 4 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 5 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 6 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 7 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 8 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 9 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 10 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 11 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 12 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 13 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 14 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 15 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 16 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 17 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 18 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 19 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 20 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 21 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 22 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 23 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 24 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 25 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 26 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 27 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 28 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 29 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 30 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 31 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 32 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 33 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 34 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 35 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 36 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 37 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 38 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 39 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 40 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 41 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 42 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 43 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 44 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 45 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 46 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 47 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 48 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 49 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 50 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 51 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 52 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 53 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 54 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 55 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 56 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 57 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 58 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 59 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 60 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 61 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 62 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 63 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 64 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 65 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 66 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 67 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 68 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 69 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 70 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 71 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 72 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 73 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 74 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 75 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 76 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 77 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 78 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 79 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 80 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 81 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 82 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 83 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 84 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 85 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 86 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 87 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 88 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 89 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 90 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 91 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 92 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 93 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 94 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 95 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 96 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 97 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 98 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 99 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 100 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 101 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 102 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 103 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 104 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 105 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 106 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 107 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 108 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 109 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 110 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 111 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 112 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 113 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 114 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 115 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 116 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 117 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 118 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 119 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 120 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 121 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 122 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 123 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 124 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 125 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 126 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 127 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 128 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 129 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 130 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 131 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 132 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 133 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 134 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 135 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 136 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 137 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 138 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 139 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 140 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 141 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 142 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 143 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 144 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 145 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 146 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 147 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 148 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 149 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 150 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 151 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 152 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 153 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 154 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 155 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 156 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 157 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 158 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 159 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 160 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 161 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 162 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 163 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 164 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 165 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 166 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 167 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 168 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 169 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 170 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 171 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 172 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 173 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 174 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 175 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 176 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 177 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 178 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 179 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 180 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 181 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 182 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 183 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 184 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 185 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 186 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 187 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 188 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 189 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 190 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 191 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 192 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 193 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 194 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 195 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 196 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 197 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 198 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 199 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 200 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 201 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 202 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 203 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 204 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 205 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 206 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 207 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 208 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 209 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 210 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 211 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 212 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 213 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 214 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 215 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 216 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 217 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 218 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 219 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 220 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 221 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 222 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 223 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 224 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 225 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 226 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 227 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 228 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 229 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 230 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 231 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 232 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 233 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 234 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 235 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 236 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 237 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 238 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 239 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 240 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 241 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 242 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 243 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 244 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 245 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 246 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 247 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 248 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 249 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 250 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 251 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 252 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 253 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 254 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 255 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 256 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 257 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 258 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 259 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 260 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 261 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 262 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 263 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 264 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 265 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 266 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 267 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 268 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 269 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 270 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 271 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 272 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 273 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 274 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 275 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 276 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 277 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 278 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 279 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 280 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 281 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 282 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 283 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 284 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 285 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 286 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 287 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 288 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 289 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 290 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 291 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 292 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 293 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 294 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 295 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 296 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 297 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 298 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 299 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 300 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 301 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 302 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 303 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 304 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 305 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 306 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 307 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 308 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 309 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 310 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 311 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 312 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 313 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 314 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 315 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 316 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 317 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 318 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 319 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 320 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 321 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 322 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 323 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 324 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 325 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 326 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 327 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 328 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 329 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 330 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 331 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 332 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 333 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 334 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 335 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 336 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 337 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 338 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 339 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 340 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 341 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 342 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 343 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 344 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 345 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 346 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 347 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 348 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 349 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 350 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 351 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 352 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 353 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 354 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 355 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 356 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 357 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 358 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 359 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 360 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 361 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 362 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 363 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 364 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 365 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 366 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 367 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 368 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 369 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 370 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 371 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 372 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 373 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 374 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 375 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 376 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 377 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 378 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 379 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 380 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 381 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 382 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 383 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 384 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 385 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 386 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 387 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 388 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 389 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 390 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 391 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 392 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 393 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 394 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 395 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 396 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 397 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 398 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 399 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 400 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 401 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 402 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 403 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 404 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 405 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 406 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 407 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 408 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 409 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 410 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 411 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 412 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 413 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 414 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 415 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 416 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 417 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 418 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 419 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 420 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 421 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 422 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 423 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 424 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 425 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 426 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 427 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 428 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 429 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 430 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 431 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 432 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 433 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 434 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 435 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 436 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 437 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 438 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 439 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 440 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 441 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 442 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 443 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 444 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 445 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 446 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 447 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 448 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 449 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 450 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 451 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 452 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 453 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 454 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 455 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 456 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 457 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 458 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 459 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 460 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 461 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 462 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 463 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 464 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 465 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 466 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 467 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 468 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 469 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 470 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 471 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 472 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 473 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 474 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 475 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 476 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 477 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 478 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 479 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 480 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 481 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 482 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 483 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 484 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 485 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 486 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 487 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 488 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 489 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 490 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 491 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 492 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 493 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 494 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 495 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 496 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 497 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 498 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 499 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 500 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 501 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 502 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 503 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 504 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 505 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 506 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 507 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 508 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 509 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 510 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 511 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 512 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 513 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 514 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 515 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 516 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 517 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 518 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 519 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 520 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 521 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 522 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 523 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 524 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 525 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 526 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 527 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 528 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 529 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 530 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 531 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 532 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 533 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 534 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 535 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 536 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 537 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 538 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 539 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 540 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 541 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 542 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 543 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 544 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 545 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 546 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 547 to ensure the document is extremely exhaustive and hits length requirements. -->\n<!-- Padding line 548 to ensure the document is extremely exhaustive and hits length requirements. -->
+    class CircuitBreaker {
+        -service_states: dict~str, CircuitBreakerState~
+        -failure_counts: dict~str, int~
+        -last_failure_times: dict~str, float~
+        -failure_threshold: int
+        -reset_timeout_sec: int
+        +__init__(failure_threshold: int, reset_timeout_sec: int)
+        +check_health(service_name: str) CircuitBreakerState
+        +record_success(service_name: str) None
+        +record_failure(service_name: str) None
+    }
+
+    class PubSub {
+        -subscribers: Dict~str, Set~Queue~~
+        +publish(topic: str, message: Any) None
+        +subscribe(topic: str) Queue
+        +unsubscribe(topic: str, queue: Queue) None
+    }
+
+    class Settings {
+        <<Pydantic BaseSettings>>
+        +APP_ENV: str
+        +LOG_LEVEL: str
+        +DATABASE_URL: str
+        +LLM_PROVIDER: str
+        +LLM_MODEL: str
+        +LLM_API_KEY: str
+        +GROQ_API_KEYS: str
+        +MAX_RETRIES: int
+        +HITL_TIMEOUT_SECONDS: int
+        +get_async_db_url() str
+        +get_sync_db_url() str
+        +get_checkpoint_db_url() str
+    }
+
+    CircuitBreaker --> CircuitBreakerState : manages
+```
+
+### Exception Hierarchy
+
+```mermaid
+classDiagram
+    class Exception {
+        <<Built-in>>
+    }
+
+    class RateLimitError {
+        <<HTTP 429>>
+    }
+
+    class TimeoutError {
+        <<External Call Timeout>>
+    }
+
+    class ServiceUnavailableError {
+        <<Circuit Breaker Open>>
+    }
+
+    Exception <|-- RateLimitError
+    Exception <|-- TimeoutError
+    Exception <|-- ServiceUnavailableError
+```
+
+---
+
+## API Provider Framework
+
+The API provider framework implements the **Factory Pattern** combined with the **Strategy Pattern** to enable pluggable external API integrations:
+
+```mermaid
+classDiagram
+    class BaseAPIProvider {
+        <<Abstract>>
+        +fetch_entries(config: dict)* list~dict~
+    }
+
+    class NewsAPIProvider {
+        +fetch_entries(config: dict) list~dict~
+    }
+
+    class GitHubAPIProvider {
+        +fetch_entries(config: dict) list~dict~
+    }
+
+    class ApifyLinkedInProvider {
+        +fetch_entries(config: dict) list~dict~
+    }
+
+    class GenericAPIProvider {
+        +fetch_entries(config: dict) list~dict~
+    }
+
+    class APIProviderFactory {
+        -_providers: dict~str, BaseAPIProvider~
+        +__init__()
+        +register_provider(source_type: str, provider: BaseAPIProvider) None
+        +get_provider(source_type: str) BaseAPIProvider
+    }
+
+    BaseAPIProvider <|-- NewsAPIProvider
+    BaseAPIProvider <|-- GitHubAPIProvider
+    BaseAPIProvider <|-- ApifyLinkedInProvider
+    BaseAPIProvider <|-- GenericAPIProvider
+
+    APIProviderFactory o-- BaseAPIProvider : manages
+    APIProviderFactory --> NewsAPIProvider : creates
+    APIProviderFactory --> GitHubAPIProvider : creates
+    APIProviderFactory --> ApifyLinkedInProvider : creates
+    APIProviderFactory --> GenericAPIProvider : creates
+```
+
+---
+
+## Toolbox Facade Composition
+
+The `Toolbox` is the central **Facade** (GoF) that aggregates all external service interactions into a single, unified interface for agents:
+
+```mermaid
+classDiagram
+    class Toolbox {
+        -_llm_service: LLMServiceProtocol
+        -_scraping_service: ScrapingServiceProtocol
+        -_enrichment_service: EnrichmentServiceProtocol
+        -circuit_breaker: CircuitBreaker
+        -event_store: list~dict~
+        +fetch_webpage(url: str, timeout: int) WebPage
+        +fetch_crunchbase(company: str) CompanyProfile
+        +scrape_linkedin(company: str) dict
+        +detect_tech_stack(html: str, domain: str) list~TechStackEntry~
+        +scrape_careers_page(url: str) list~JobPosting~
+        +validate_email(email: str) EmailValidationResult
+        +get_competitor_info(tech: str) CompetitorMapping
+        +emit_event(type: str, payload: Any) None
+        +send_webhook(url: str, payload: Any) None
+        +generate_text(prompt: str, fallback: str) str
+        +get_llm(strategy: str) ChatModel
+        +find_company_employees(company: str) list~dict~
+        +enrich_contact(name: str, domain: str) dict
+        +fetch_rss_entries(url: str) list~dict~
+        +fetch_jobs(company: str) list~dict~
+    }
+
+    class LLMServiceProtocol {
+        <<Protocol>>
+    }
+    class ScrapingServiceProtocol {
+        <<Protocol>>
+    }
+    class EnrichmentServiceProtocol {
+        <<Protocol>>
+    }
+    class CircuitBreaker {
+        +check_health(service: str) State
+        +record_success(service: str) None
+        +record_failure(service: str) None
+    }
+
+    Toolbox *-- LLMServiceProtocol : composition
+    Toolbox *-- ScrapingServiceProtocol : composition
+    Toolbox *-- EnrichmentServiceProtocol : composition
+    Toolbox *-- CircuitBreaker : composition
+```
+
+---
+
+## Complete System Class Map
+
+The following diagram shows the full composition of the system, illustrating how every major class relates to every other:
+
+```mermaid
+classDiagram
+    %% Core
+    Settings --> Toolbox : configures
+    CircuitBreaker --> Toolbox : protects calls
+    PubSub --> WorkflowService : broadcasts events
+
+    %% Agent Layer
+    AgentRegistry --> AgentNode : stores
+    SafeAgentWrapper --> AgentNode : wraps
+    DynamicPlannerNode --> AgentRegistry : queries
+    DynamicPlannerNode --> Toolbox : uses
+    DynamicPlannerNode --> MemoryService : uses
+
+    %% Service Layer
+    Toolbox --> LLMServiceProtocol : delegates
+    Toolbox --> ScrapingServiceProtocol : delegates
+    Toolbox --> EnrichmentServiceProtocol : delegates
+    WorkflowService --> HITLService : creates requests
+    HITLService --> MemoryService : persists
+    TriggerMonitor --> APIProviderFactory : fetches events
+    TriggerMonitor --> WorkflowService : submits prospects
+    ConfigService --> Config : reads/writes
+
+    %% Data Layer
+    MemoryService --> Prospect : CRUD
+    MemoryService --> HITLRequest : CRUD
+    MemoryService --> ProcessedEvent : dedup
+```
+
+---
+
+<p align="center">
+  <a href="README.md">Backend README</a> &#8226;
+  <a href="SEQUENCE_FLOW.md">Sequence Flows</a> &#8226;
+  <a href="SOLID_PRINCIPLES.md">SOLID</a> &#8226;
+  <a href="RELIABILITY.md">Reliability</a> &#8226;
+  <a href="AGENTIC_FLOW.md">Agentic Flow</a> &#8226;
+  <a href="LLD_ARCHITECTURE.md">LLD</a> &#8226;
+  <a href="APPLICATION_FLOW.md">App Flow</a>
+</p>

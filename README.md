@@ -30,8 +30,11 @@ We believe world-class engineering deserves world-class documentation. Dive deep
 
 - 💻 **[Frontend Documentation](./frontend/README.md)**: Explore our modern, responsive React UI, component architecture, and state management.
 - ⚙️ **[Backend Engineering Hub](./backend/README.md)**: Discover the powerhouse driving the agents.
-  - 📐 **[System Architecture & Flow](./backend/ARCHITECTURE.md)**: Agentic flow diagrams, sequence diagrams, and reliability engineering.
-  - 🛠️ **[Low-Level Design (LLD)](./backend/LLD.md)**: Detailed class diagrams, design patterns, and SOLID principles in action.
+  - 🧬 **[Class Architecture & LLD](./backend/CLASS_DIAGRAM.md)**: Domain-driven design and strict typing.
+  - 🌊 **[Sequence Flow](./backend/SEQUENCE_FLOW.md)**: End-to-end application lifecycle mapping.
+  - 🧱 **[SOLID & Patterns](./backend/SOLID_PRINCIPLES.md)**: Immaculate software engineering practices.
+  - 🧠 **[Dynamic Agentic Flow](./backend/AGENTIC_FLOW.md)**: Deep dive into LangGraph orchestration.
+  - 🛡️ **[Reliability Engineering](./backend/RELIABILITY.md)**: Circuit breakers, connection pooling, and fault tolerance.
 
 ---
 

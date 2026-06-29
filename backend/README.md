@@ -17,8 +17,11 @@ This is not a simple CRUD app. This is an **autonomous decision-making engine** 
 
 To truly appreciate the engineering marvel of this backend, we have divided the documentation into dedicated, highly detailed sections. **Prepare to have your mind blown:**
 
-- 🚀 **[ARCHITECTURE.md](./ARCHITECTURE.md)**: Explore the macro-level design, sequence diagrams, agentic workflow lifecycles, and our obsessive approach to system reliability.
-- 📐 **[LLD.md](./LLD.md)**: Dive into the micro-level Low-Level Design. Class diagrams, strict adherence to SOLID principles, and advanced design patterns.
+- 🧬 **[Class Architecture & LLD](./CLASS_DIAGRAM.md)**: Explore our heavily decoupled Domain-Driven Design and comprehensive class diagrams.
+- 🌊 **[End-to-End Sequence Flow](./SEQUENCE_FLOW.md)**: A deep dive into the global asynchronous pipeline with detailed sequence diagrams.
+- 🧱 **[SOLID & Design Patterns](./SOLID_PRINCIPLES.md)**: How we achieve a zero-tech-debt environment using rigorous SOLID principles and GoF patterns.
+- 🧠 **[Dynamic Agentic Flow](./AGENTIC_FLOW.md)**: Discover how LangGraph powers our cognitive, self-correcting agents and state machines.
+- 🛡️ **[Reliability Engineering](./RELIABILITY.md)**: Our obsessive approach to fault tolerance, idempotency, and circuit breakers.
 
 ---
 

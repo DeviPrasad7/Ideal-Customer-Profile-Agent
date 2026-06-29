@@ -270,39 +270,15 @@ The `DynamicPlannerNode` uses a three-tier routing strategy:
 
 ### Platform Screenshots
 
-<p align="center">
-  <img src="docs/assets/execution-trace.jpg" alt="Orchestrator Execution Trace" width="80%">
-</p>
-<p align="center">
-  <em>Live Agent Execution Trace showing real-time state updates</em>
-</p>
+![Prospects Pipeline Dashboard](docs/assets/2.jpeg)
 
-<br/>
+![Orchestrator Execution Trace](docs/assets/4.jpeg)
 
-<p align="center">
-  <img src="docs/assets/agent-directory.jpg" alt="Agent Directory" width="80%">
-</p>
-<p align="center">
-  <em>Agent Directory for monitoring specialized services</em>
-</p>
+![Agent Directory](docs/assets/1.jpeg)
 
-<br/>
+![Workflow Studio Canvas](docs/assets/3.jpeg)
 
-<p align="center">
-  <img src="docs/assets/workflow-studio.jpg" alt="Workflow Studio Canvas" width="80%">
-</p>
-<p align="center">
-  <em>Drag-and-drop Workflow Studio for building custom DAG pipelines</em>
-</p>
-
-<br/>
-
-<p align="center">
-  <img src="docs/assets/actionable-summary.jpg" alt="Actionable Summary" width="80%">
-</p>
-<p align="center">
-  <em>Final Prospect Actionable Summary after successful enrichment</em>
-</p>
+![Actionable Summary](docs/assets/5.jpeg)
 
 ---
 

@@ -268,6 +268,42 @@ The `DynamicPlannerNode` uses a three-tier routing strategy:
 
 3. **Deterministic Fallback** -- If the LLM fails or returns an invalid response, the planner falls back to a deterministic linear sequence, ensuring the pipeline always makes forward progress.
 
+### Platform Screenshots
+
+<p align="center">
+  <img src="docs/assets/execution-trace.jpg" alt="Orchestrator Execution Trace" width="80%">
+</p>
+<p align="center">
+  <em>Live Agent Execution Trace showing real-time state updates</em>
+</p>
+
+<br/>
+
+<p align="center">
+  <img src="docs/assets/agent-directory.jpg" alt="Agent Directory" width="80%">
+</p>
+<p align="center">
+  <em>Agent Directory for monitoring specialized services</em>
+</p>
+
+<br/>
+
+<p align="center">
+  <img src="docs/assets/workflow-studio.jpg" alt="Workflow Studio Canvas" width="80%">
+</p>
+<p align="center">
+  <em>Drag-and-drop Workflow Studio for building custom DAG pipelines</em>
+</p>
+
+<br/>
+
+<p align="center">
+  <img src="docs/assets/actionable-summary.jpg" alt="Actionable Summary" width="80%">
+</p>
+<p align="center">
+  <em>Final Prospect Actionable Summary after successful enrichment</em>
+</p>
+
 ---
 
 ## Backend Engineering
